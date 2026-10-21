@@ -1,6 +1,6 @@
 import Cocoa
 import SwiftUI
-import BlendKeyCore
+import CodeZhuyinCore
 
 /// 候選字窗內容（無狀態，每次呈現直接換 rootView）：
 /// 直式上下清單（比照系統內建注音），聯想詞則是橫式建議列（像手機鍵盤）。每一項都可以用滑鼠點。

@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import BlendKeyCore
+@testable import CodeZhuyinCore
 
 private func type(_ engine: InputEngine, _ keys: String) {
     for key in keys {
@@ -12,6 +12,7 @@ private func type(_ engine: InputEngine, _ keys: String) {
 
 @Test func 空組字區按反引號開符號表_選了直接上屏() {
     let engine = InputEngine(lexicon: 測試詞庫)
+    engine.backtickOpensSymbolSheet = true
     #expect(engine.handle(.character("`")).handled)
     #expect(engine.sheetView()?.items.prefix(3).map(\.value) == ["…", "——", "《"])
     #expect(!engine.isIdle)  // 符號表開著：Cmd 快捷鍵才會先收窗
@@ -21,6 +22,7 @@ private func type(_ engine: InputEngine, _ keys: String) {
 
 @Test func 組字中插入符號_連按兩下出反引號本身() {
     let engine = InputEngine(lexicon: 測試詞庫)
+    engine.backtickOpensSymbolSheet = true
     type(engine, "su3`1")  // 你＋…
     #expect(engine.preedit().text == "你…")
     type(engine, "``")

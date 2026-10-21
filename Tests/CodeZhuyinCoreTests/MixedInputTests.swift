@@ -1,10 +1,11 @@
 import Testing
-@testable import BlendKeyCore
+@testable import CodeZhuyinCore
 
 // MARK: - 全形標點
 
 @Test func 閒置時標點直接上屏() {
     let engine = InputEngine(lexicon: 測試詞庫)
+    engine.fullWidthPunctuation = true
     let output = engine.handle(.character("<"))
     #expect(output == InputEngine.Output(handled: true, commitText: "，"))
     #expect(engine.isIdle)
@@ -12,6 +13,7 @@ import Testing
 
 @Test func 組字中標點進組字區() {
     let engine = InputEngine(lexicon: 測試詞庫)
+    engine.fullWidthPunctuation = true
     for key in "su3cl3" { _ = engine.handle(.character(key)) }
     _ = engine.handle(.character("!"))
     #expect(engine.preedit().text == "你好！")

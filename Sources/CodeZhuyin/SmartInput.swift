@@ -1,5 +1,5 @@
 import Foundation
-import BlendKeyCore
+import CodeZhuyinCore
 
 /// 智慧輸入：在本機跑開源續寫型模型 Breeze-7B-Base（llama.cpp 的 llama-server，不連網），
 /// 負責 AI 補句（把句子接下去）與 AI 校正（改掉組字區的同音錯字）。
@@ -18,7 +18,7 @@ enum SmartInput {
 
     static var modelURL: URL? {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
-            .appendingPathComponent("BlendKey/models/\(modelFileName)")
+            .appendingPathComponent("CodeZhuyin/models/\(modelFileName)")
     }
 
     static var modelExists: Bool {
@@ -57,7 +57,7 @@ enum SmartInput {
         guard !isRunning, let server = serverPath, let model = modelURL, modelExists else { return }
         let launched = Process()
         launched.executableURL = URL(fileURLWithPath: "/bin/sh")
-        // 外面包一層 sh：融鍵結束（就算當掉）伺服器也跟著結束，不會偷佔 4 GB 記憶體
+        // 外面包一層 sh：碼注音結束（就算當掉）伺服器也跟著結束，不會偷佔 4 GB 記憶體
         launched.arguments = [
             "-c",
             """

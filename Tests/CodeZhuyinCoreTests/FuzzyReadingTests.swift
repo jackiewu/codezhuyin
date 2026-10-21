@@ -1,5 +1,5 @@
 import Testing
-@testable import BlendKeyCore
+@testable import CodeZhuyinCore
 
 private let 相似音詞庫 = Lexicon(dataText: """
 ㄓㄨㄥ 中 -4.0

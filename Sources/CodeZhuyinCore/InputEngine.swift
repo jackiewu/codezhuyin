@@ -116,8 +116,10 @@ public final class InputEngine {
     /// 組字區一有變動（rewalk）就作廢，所以不會顯示過期的補句。
     public var aiCompletion: String?
 
-    /// 全形標點開關（偏好設定）
-    public var fullWidthPunctuation = true
+    /// 全形標點開關（偏好設定）。碼注音預設關：工程師要的是鍵盤上的半形 ASCII 標點
+    public var fullWidthPunctuation = false
+    /// 反引號開符號表（偏好設定）。碼注音預設關：` 一律原樣輸出（Markdown、行內程式碼）
+    public var backtickOpensSymbolSheet = false
     /// 中英之間自動加空白開關（偏好設定）：我愛mac → 我愛 mac
     public var autoSpacing = true
     /// 相似音修正開關（偏好設定）：ㄓㄗ、ㄔㄘ、ㄕㄙ、ㄌㄋ、ㄈㄏ、ㄣㄥ、ㄢㄤ 互通
@@ -622,8 +624,15 @@ public final class InputEngine {
                 return .consumed
             }
             cancelNumericRun()
+            if ch == "`", backtickOpensSymbolSheet {
+                if !composer.isEmpty { return .consumed }  // 打錯鍵不打斷組字
+                openSymbolSheet()
+                return .consumed
+            }
+            if ch == "`" || !fullWidthPunctuation, let output = passThroughCodePunctuation(ch) {
+                return output
+            }
             if !composer.isEmpty { return .consumed }  // 打錯鍵不打斷組字
-            if ch == "`" { openSymbolSheet(); return .consumed }
             if fullWidthPunctuation, let punct = Punctuation.fullWidth(ch) {
                 if elements.isEmpty { return Output(handled: true, commitText: punct) }
                 insertLiteral(punct)
@@ -633,6 +642,22 @@ public final class InputEngine {
             // 組字區有內容時打到非注音鍵：先上屏，再讓按鍵原樣送給應用程式
             return Output(handled: false, commitText: flush())
         }
+    }
+
+    /// 半形標點直出（碼注音的核心規則）：` _ ( ) [ ] = 這類非注音鍵出現時，
+    /// 前面還沒打完的按鍵幾乎都是英文識別字（`foo`、foo_bar、fn(x)）——
+    /// 未完成的注音音節本來就組不出字，所以把原始按鍵原樣當英文，
+    /// 連同已組好的中文一起上屏，再讓這個標點鍵原樣送進應用程式。
+    /// 組字區全空時回傳 ignored：按鍵完全不經手，跟英文鍵盤一模一樣。
+    private func passThroughCodePunctuation(_ ch: Character) -> Output? {
+        guard !ch.isNumber, !ch.isLetter else { return nil }
+        if !composer.isEmpty {
+            let raw = composer.rawKeys
+            composer.clear()
+            insertLiteral(raw)
+        }
+        if elements.isEmpty { return .ignored }
+        return Output(handled: false, commitText: flush())
     }
 
     /// 打完英文或數字沒按 Tab 就接著打注音：鍵全混進同一個音節（push＋上＝ㄕㄧㄤˋ、150＋個＝ㄍㄜˋ，

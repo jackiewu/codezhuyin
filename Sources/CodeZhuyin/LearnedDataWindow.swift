@@ -1,8 +1,8 @@
 import Cocoa
 import SwiftUI
-import BlendKeyCore
+import CodeZhuyinCore
 
-/// 學習資料檢視：看得到融鍵記住了什麼，也能逐筆刪掉學壞的。
+/// 學習資料檢視：看得到碼注音記住了什麼，也能逐筆刪掉學壞的。
 private struct LearnedDataView: View {
     let store: UserPhraseStore
 
@@ -106,7 +106,7 @@ final class LearnedDataWindowController {
         if window == nil {
             let hosting = NSHostingController(rootView: LearnedDataView(store: store))
             let window = NSWindow(contentViewController: hosting)
-            window.title = "融鍵學習資料"
+            window.title = "碼注音學習資料"
             window.styleMask = [.titled, .closable, .resizable]
             window.isReleasedWhenClosed = false
             window.center()

@@ -1,12 +1,12 @@
 import Foundation
-import BlendKeyCore
+import CodeZhuyinCore
 
-// blendkey-cli：組字管線 REPL——不安裝輸入法也能驗證整條管線。
+// codezhuyin-cli：組字管線 REPL——不安裝輸入法也能驗證整條管線。
 // 控制鍵對應：<=← >=→ [=↓ ]=↑ `=退格 \=Esc !=Enter 空白=空白鍵 大寫字母=直出英文
 
 var args = Array(CommandLine.arguments.dropFirst())
 
-// 評估模式：blendkey-cli --eval <tsv>（每行「讀音1-讀音2-…⇥預期句子」），量測組句正確率
+// 評估模式：codezhuyin-cli --eval <tsv>（每行「讀音1-讀音2-…⇥預期句子」），量測組句正確率
 // 可加 --train <tsv>：先把該檔的句子當作使用者打過的內容學進去，再評估
 var evalPath: String?
 var trainPath: String?

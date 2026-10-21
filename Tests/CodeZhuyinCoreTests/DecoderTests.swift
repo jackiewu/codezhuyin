@@ -1,5 +1,5 @@
 import Testing
-@testable import BlendKeyCore
+@testable import CodeZhuyinCore
 
 let 測試詞庫 = Lexicon(dataText: """
 # format org.openvanilla.mcbopomofo.sorted

@@ -64,7 +64,7 @@
 這顆本機模型太小，用不好附加的資料。
 
 真的「訓練」（adapter 微調）在這台也做不到：記憶體只有 8 GB、每次 macOS 換模型就要重訓、
-而且融鍵刻意不存原句（只存詞對），沒有訓練用的完整句子。
+而且碼注音刻意不存原句（只存詞對），沒有訓練用的完整句子。
 
 ### E. 「AI 補句」：打到一半，用灰字補完這句話（`completion.swift`）
 
@@ -96,7 +96,7 @@
 
 ### F. 「AI 校正」：組字結果有同音錯字時請 AI 改正（`correction.swift`）
 
-和融鍵解碼器一起編譯：90 句測試句先照平常解碼（10 句有錯），再請模型改錯字。
+和碼注音解碼器一起編譯：90 句測試句先照平常解碼（10 句有錯），再請模型改錯字。
 **保險**：模型改的字必須跟該位置的注音同音（詞庫查得到）、字數不變，否則不採用。
 `--merge` 模式改為逐字合併（只採用同音的改動，其餘維持原字）。
 
@@ -150,7 +150,7 @@
 
 ## 和現有「詞對接續學習」怎麼搭
 
-BlendKey 已經記下「你打過的 前詞→後詞」（`UserPhraseStore.transitions`）。它很準，因為只記你真的打過的東西，查表也幾乎不花時間；缺點是沒打過的就不知道。
+CodeZhuyin 已經記下「你打過的 前詞→後詞」（`UserPhraseStore.transitions`）。它很準，因為只記你真的打過的東西，查表也幾乎不花時間；缺點是沒打過的就不知道。
 
 如果以後要做，順序應該是：
 
@@ -162,7 +162,7 @@ BlendKey 已經記下「你打過的 前詞→後詞」（`UserPhraseStore.trans
 
 - `Package.swift`：最低版本是 macOS 14，FoundationModels 要 macOS 26，要用 `if #available(macOS 26, *)` 包起來
 - 只有 CommandLineTools 時沒有 `@Generable` 巨集，要用 `DynamicGenerationSchema` 或純文字輸出（本實驗就是這樣做的）
-- `BlendKeyInputController.swift`：上屏後在背景問 AI，結果回來再顯示建議；使用者已經在打下一個字就丟掉
+- `CodeZhuyinInputController.swift`：上屏後在背景問 AI，結果回來再顯示建議；使用者已經在打下一個字就丟掉
 - 新的候選窗模式：顯示建議、按 Tab 或數字接受
 - 偏好設定：加開關，預設關閉；需要使用者在「系統設定 › Apple Intelligence 與 Siri」開啟 Apple Intelligence
 - 模型在系統的另一個行程跑，輸入法本身的記憶體不會變大

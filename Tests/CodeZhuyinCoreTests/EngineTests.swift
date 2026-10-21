@@ -1,5 +1,5 @@
 import Testing
-@testable import BlendKeyCore
+@testable import CodeZhuyinCore
 
 private func makeEngine() -> InputEngine {
     InputEngine(lexicon: 測試詞庫)

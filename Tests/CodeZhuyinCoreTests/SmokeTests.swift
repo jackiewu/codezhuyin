@@ -1,5 +1,5 @@
 import Testing
-@testable import BlendKeyCore
+@testable import CodeZhuyinCore
 
 @Test func 按鍵抽象可比較() {
     #expect(KeyInput.space == KeyInput.space)

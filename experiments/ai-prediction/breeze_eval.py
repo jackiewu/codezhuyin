@@ -5,7 +5,7 @@
 先在另一個終端機開 llama.cpp 伺服器（模型只在本機跑）：
     llama-server -m Breeze-7B-Base-v1_0.Q3_K_M.gguf --port 8089 -ngl 99 -c 1024
 再跑（在專案根目錄）：
-    swift build -c release --product blendkey-cli
+    swift build -c release --product codezhuyin-cli
     python3 experiments/ai-prediction/breeze_eval.py
 """
 import json
@@ -107,9 +107,9 @@ if cases:
   print(f"延遲中位數 {statistics.median(times):.0f} ms\n")
 
 # ---------- AI 校正 ----------
-# 解碼結果：blendkey-cli --eval 只印錯的（✗ 預期　→　實際），其他就是解對了
+# 解碼結果：codezhuyin-cli --eval 只印錯的（✗ 預期　→　實際），其他就是解對了
 eval_out = subprocess.run(
-    [".build/release/blendkey-cli", "--eval", FIXTURE],
+    [".build/release/codezhuyin-cli", "--eval", FIXTURE],
     input="", capture_output=True, text=True,
 ).stdout
 wrong = {}

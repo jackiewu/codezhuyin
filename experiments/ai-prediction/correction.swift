@@ -1,7 +1,7 @@
 // 實驗 F：「AI 校正」——組字結果可能有同音錯字（打的字→打的自），請 AI 改正。
 // 保險：AI 改的每個字都必須和該位置的注音同音（詞庫查得到），否則整句不採用。
-// 和融鍵的解碼器一起編譯（不安裝輸入法也能跑）：
-//   swiftc -O -parse-as-library correction.swift ../../Sources/BlendKeyCore/*.swift -o /tmp/correction
+// 和碼注音的解碼器一起編譯（不安裝輸入法也能跑）：
+//   swiftc -O -parse-as-library correction.swift ../../Sources/CodeZhuyinCore/*.swift -o /tmp/correction
 //   /tmp/correction ../../Resources/data/data.txt ../../Tests/Fixtures/sentences.tsv
 import Foundation
 import FoundationModels

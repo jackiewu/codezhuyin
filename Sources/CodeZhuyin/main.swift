@@ -1,9 +1,9 @@
 import Cocoa
 import InputMethodKit
-import BlendKeyCore
+import CodeZhuyinCore
 
 // 必須與 Info.plist 的 InputMethodConnectionName 一字不差
-let kConnectionName = "org.blendkey.inputmethod.BlendKey_Connection"
+let kConnectionName = "io.github.jackiewu.inputmethod.CodeZhuyin_Connection"
 
 // install / uninstall 子命令：TIS 註冊／停用後直接結束，供 install.sh 呼叫
 if CommandLine.arguments.count > 1 {
@@ -25,18 +25,18 @@ if CommandLine.arguments.count > 1 {
             let store = UserPhraseStore(
                 fileURL: FileManager.default
                     .urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
-                    .appendingPathComponent("BlendKey/userphrases.json"))
+                    .appendingPathComponent("CodeZhuyin/userphrases.json"))
             LearnedDataWindowController.shared.show(store: store)
         }
         app.run()
     default:
-        FileHandle.standardError.write(Data("用法：BlendKey [install|uninstall]\n".utf8))
+        FileHandle.standardError.write(Data("用法：CodeZhuyin [install|uninstall]\n".utf8))
         exit(1)
     }
 }
 
 guard let bundleID = Bundle.main.bundleIdentifier else {
-    FileHandle.standardError.write(Data("錯誤：必須以 BlendKey.app 形式執行\n".utf8))
+    FileHandle.standardError.write(Data("錯誤：必須以 CodeZhuyin.app 形式執行\n".utf8))
     exit(1)
 }
 
@@ -48,13 +48,13 @@ guard server != nil else {
     Log.general.error("IMKServer 建立失敗")
     exit(1)
 }
-Log.general.info("融鍵已啟動（connection: \(kConnectionName, privacy: .public)）")
+Log.general.info("碼注音已啟動（connection: \(kConnectionName, privacy: .public)）")
 
 // pkill（install.sh 熱更新）／登出送 SIGTERM：學習資料是延後寫檔的，結束前先存
 signal(SIGTERM, SIG_IGN)
 let terminationSource = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
 terminationSource.setEventHandler {
-    BlendKeyInputController.userPhrases.flush()
+    CodeZhuyinInputController.userPhrases.flush()
     SmartInput.stop()  // 模型伺服器跟著關（萬一沒關到，外層 sh 也會在 2 秒內收掉）
     exit(0)
 }

@@ -1,7 +1,7 @@
 import Cocoa
 import SwiftUI
 
-/// 操作說明：一頁看完怎麼用融鍵。
+/// 操作說明：一頁看完怎麼用碼注音。
 private struct GuideView: View {
 
     private struct Shortcut: Identifiable {
@@ -21,7 +21,7 @@ private struct GuideView: View {
     ]
 
     private let quick = [
-        Shortcut(keys: "`（數字 1 左邊）", detail: "打開符號表：…、——、《》、→、℃、①、NT$ 等，←→ 翻頁換類別；連按兩下輸出 ` 本身"),
+        Shortcut(keys: "`（數字 1 左邊）", detail: "直接輸出 `（Markdown 行內程式碼、``` 區塊都不用切換）。要符號表可到偏好設定開啟"),
         Shortcut(keys: "今天＋空白", detail: "候選窗多出 2026-10-20、民國年、星期等寫法；明天、昨天、後天、前天也可以，打「現在」出時間"),
         Shortcut(keys: "Tab＋數字（聯想詞）", detail: "打字時會橫排提示你平常最常接著打的詞。先按 Tab，再按 1〜5 選（Tab 兩下＝第一個），也可以用滑鼠點；選完可以一路接下去，要送出就按 Enter。不想要就照常打字"),
         Shortcut(keys: "→（AI 補句）", detail: "智慧輸入（實驗，偏好設定開啟，約佔 4 GB 記憶體）。打了 6 個字以上再停一下，提示列最前面會出現 ✨ AI 幫你接下去的字，按 → 接受、或用滑鼠點"),
@@ -40,7 +40,7 @@ private struct GuideView: View {
     ]
 
     private let smart = [
-        Shortcut(keys: "打錯自己會修", detail: "英文模式下誤打注音，或大寫燈亮著打注音，融鍵會自動切回中文並把已打出的字母收回重組"),
+        Shortcut(keys: "打錯自己會修", detail: "英文模式下誤打注音，或大寫燈亮著打注音，碼注音會自動切回中文並把已打出的字母收回重組"),
         Shortcut(keys: "越用越準", detail: "選過的字、改過的詞、詞語接續習慣都會記住，同一句話打過幾次之後就不用再改"),
         Shortcut(keys: "自動造詞", detail: "同一串注音連續兩次被你改字後上屏，就自動學成新詞"),
     ]
@@ -49,7 +49,7 @@ private struct GuideView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("融鍵 BlendKey")
+                    Text("碼注音 CodeZhuyin")
                         .font(.system(size: 24, weight: .semibold))
                     Text("中英混輸零阻礙的注音輸入法——打字時不用切換輸入法，中文、英文、標點一氣呵成。")
                         .foregroundStyle(.secondary)
@@ -64,7 +64,7 @@ private struct GuideView: View {
                     Text("小訣竅").font(.headline)
                     Text("・打「用Google搜索」：先打 ㄩㄥˋ，再打 google 按空白選 Google，接著直接打注音（反白的那個會自動選上）\n"
                          + "・不小心按到大寫燈也沒關係，繼續打注音它會自己修正回來\n"
-                         + "・想看融鍵記住了什麼，開「學習資料…」，可以逐筆刪掉學壞的")
+                         + "・想看碼注音記住了什麼，開「學習資料…」，可以逐筆刪掉學壞的")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -106,7 +106,7 @@ final class GuideWindowController {
     func show() {
         if window == nil {
             let window = NSWindow(contentViewController: NSHostingController(rootView: GuideView()))
-            window.title = "融鍵操作說明"
+            window.title = "碼注音操作說明"
             window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false
             window.center()

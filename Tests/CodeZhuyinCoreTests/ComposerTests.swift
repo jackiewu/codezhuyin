@@ -1,5 +1,5 @@
 import Testing
-@testable import BlendKeyCore
+@testable import CodeZhuyinCore
 
 private func compose(_ keys: String) -> [Syllable] {
     var composer = SyllableComposer()

@@ -6,6 +6,7 @@ enum SettingKey {
     static let shiftToggle = "shiftToggle"
     static let englishHint = "englishHint"
     static let fullWidthPunctuation = "fullWidthPunctuation"
+    static let backtickSymbolSheet = "backtickSymbolSheet"
     static let autoSpacing = "autoSpacing"
     static let pageSize = "pageSize"
     static let fuzzyReading = "fuzzyReading"
@@ -19,7 +20,8 @@ enum SettingKey {
         UserDefaults.standard.register(defaults: [
             shiftToggle: true,
             englishHint: true,
-            fullWidthPunctuation: true,
+            fullWidthPunctuation: false,
+            backtickSymbolSheet: false,
             autoSpacing: true,
             pageSize: 9,
             fuzzyReading: false,
@@ -35,7 +37,8 @@ enum SettingKey {
 private struct SettingsView: View {
     @AppStorage(SettingKey.shiftToggle) private var shiftToggle = true
     @AppStorage(SettingKey.englishHint) private var englishHint = true
-    @AppStorage(SettingKey.fullWidthPunctuation) private var fullWidthPunctuation = true
+    @AppStorage(SettingKey.fullWidthPunctuation) private var fullWidthPunctuation = false
+    @AppStorage(SettingKey.backtickSymbolSheet) private var backtickSymbolSheet = false
     @AppStorage(SettingKey.autoSpacing) private var autoSpacing = true
     @AppStorage(SettingKey.pageSize) private var pageSize = 9
     @AppStorage(SettingKey.fuzzyReading) private var fuzzyReading = false
@@ -78,6 +81,10 @@ private struct SettingsView: View {
             }
             Section("中文輸入") {
                 Toggle("全形標點（，。？！…）", isOn: $fullWidthPunctuation)
+                Toggle("反引號 ` 開符號表（關閉＝` 直接輸出）", isOn: $backtickSymbolSheet)
+                Text("預設全部半形：` _ ( ) [ ] = 等鍵跟英文鍵盤一樣直接輸出，Markdown 與程式碼不用切換。")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
                 Toggle("相似音修正（ㄓㄗ、ㄕㄙ、ㄣㄥ 打錯也找得到）", isOn: $fuzzyReading)
                 Text("開啟後正確讀音仍排最前面，相似音只在後面遞補。")
                     .font(.callout)
@@ -113,7 +120,7 @@ private struct SettingsView: View {
                 .disabled(!smartInput || !smartInputReady)
             }
             Section("學習資料") {
-                Text("融鍵會記住你選過的字、自動學成新詞，並記錄詞與詞的接續習慣，讓斷詞越用越準。資料只存在本機（Application Support），不會離開這台電腦。")
+                Text("碼注音會記住你選過的字、自動學成新詞，並記錄詞與詞的接續習慣，讓斷詞越用越準。資料只存在本機（Application Support），不會離開這台電腦。")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 HStack {
@@ -158,7 +165,7 @@ final class SettingsWindowController {
             let hosting = NSHostingController(
                 rootView: SettingsView(onReset: onReset, onShowLearnedData: onShowLearnedData))
             let window = NSWindow(contentViewController: hosting)
-            window.title = "融鍵偏好設定"
+            window.title = "碼注音偏好設定"
             window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false
             window.center()

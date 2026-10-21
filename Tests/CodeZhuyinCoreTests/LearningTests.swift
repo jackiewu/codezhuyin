@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import BlendKeyCore
+@testable import CodeZhuyinCore
 
 @Test func 選字被記住_下次自動偏向() {
     let store = UserPhraseStore(fileURL: nil)  // 純記憶體
@@ -80,7 +80,7 @@ private func 打擬界並上屏(_ store: UserPhraseStore) -> String? {
 
 @Test func 舊版學習檔案自動遷移() throws {
     let url = FileManager.default.temporaryDirectory
-        .appendingPathComponent("blendkey-legacy-\(UInt32.random(in: 0..<UInt32.max)).json")
+        .appendingPathComponent("codezhuyin-legacy-\(UInt32.random(in: 0..<UInt32.max)).json")
     defer { try? FileManager.default.removeItem(at: url) }
     // 第一版格式：頂層直接是 讀音 → 詞 → 次數
     try Data(#"{"ㄋㄧˇ":{"妳":3}}"#.utf8).write(to: url)
@@ -153,7 +153,7 @@ private func 打擬界並上屏(_ store: UserPhraseStore) -> String? {
 
 @Test func 學習權重可存檔重載() throws {
     let url = FileManager.default.temporaryDirectory
-        .appendingPathComponent("blendkey-test-\(UInt32.random(in: 0..<UInt32.max)).json")
+        .appendingPathComponent("codezhuyin-test-\(UInt32.random(in: 0..<UInt32.max)).json")
     defer { try? FileManager.default.removeItem(at: url) }
 
     let store = UserPhraseStore(fileURL: url)

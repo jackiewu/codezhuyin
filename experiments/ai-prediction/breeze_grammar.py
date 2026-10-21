@@ -2,7 +2,7 @@
 """實驗 H：Breeze 校正改用「只能選同音字」的文法限制（llama.cpp GBNF）。
 比較三種：(a) 看錯字句、自由改寫＋同音保險（實驗 G）、(b) 看錯字句＋文法限制、
 (c) 不看錯字句，只用文法限制讓模型從同音字裡挑最通順的。
-需要融鍵的 Breeze 伺服器在跑（偏好設定開啟智慧輸入，port 39281）。
+需要碼注音的 Breeze 伺服器在跑（偏好設定開啟智慧輸入，port 39281）。
     python3 experiments/ai-prediction/breeze_grammar.py
 """
 import json, subprocess, time, urllib.request, statistics
@@ -21,7 +21,7 @@ for line in open("Tests/Fixtures/sentences.tsv", encoding="utf8"):
     p = line.rstrip("\n").split("\t")
     if len(p) == 2:
         rows.append((p[0].split("-"), p[1]))
-out = subprocess.run([".build/release/blendkey-cli", "--eval", "Tests/Fixtures/sentences.tsv"],
+out = subprocess.run([".build/release/codezhuyin-cli", "--eval", "Tests/Fixtures/sentences.tsv"],
                      input="", capture_output=True, text=True).stdout
 wrong = {}
 for line in out.splitlines():

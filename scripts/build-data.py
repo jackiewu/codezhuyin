@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""將小麥注音（McBopomofo，MIT）原始詞庫轉為 BlendKey 詞庫 data.txt。
+"""將小麥注音（McBopomofo，MIT）原始詞庫轉為 CodeZhuyin 詞庫 data.txt。
 
 輸出行格式（沿用 mcbopomofo sorted 格式）：
     讀音(音節以-連接) 詞 ln機率

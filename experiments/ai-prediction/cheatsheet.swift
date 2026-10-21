@@ -9,7 +9,7 @@ import FoundationModels
 struct Pair: Hashable { let previous: String; let next: String; let count: Int }
 
 let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-    .appendingPathComponent("BlendKey/userphrases.json")
+    .appendingPathComponent("CodeZhuyin/userphrases.json")
 let json = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as! [String: Any]
 let transitions = json["transitions"] as! [String: [String: Int]]
 let isHan = { (s: String) in !s.isEmpty && s.unicodeScalars.allSatisfy { (0x4E00...0x9FFF).contains($0.value) } }

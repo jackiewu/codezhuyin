@@ -1,12 +1,12 @@
 import Carbon
 import Cocoa
 import InputMethodKit
-import BlendKeyCore
+import CodeZhuyinCore
 
 /// IMK 殼層：把 NSEvent 轉成 KeyInput 餵核心引擎，把結果寫回 client。
 /// 類別名以 @objc 固定，對應 Info.plist 的 InputMethodServerControllerClass。
-@objc(BlendKeyInputController)
-class BlendKeyInputController: IMKInputController {
+@objc(CodeZhuyinInputController)
+class CodeZhuyinInputController: IMKInputController {
 
     /// 中／英模式是整個輸入法共享的（跨應用程式一致）
     private static var chineseMode = true
@@ -25,7 +25,7 @@ class BlendKeyInputController: IMKInputController {
     static let userPhrases = UserPhraseStore(
         fileURL: FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
-            .appendingPathComponent("BlendKey/userphrases.json")
+            .appendingPathComponent("CodeZhuyin/userphrases.json")
     )
 
     private var engine: InputEngine?
@@ -411,6 +411,7 @@ class BlendKeyInputController: IMKInputController {
             engine.englishDetector = LexiconStore.englishDetector
             engine.englishHintEnabled = defaults.bool(forKey: SettingKey.englishHint)
             engine.fullWidthPunctuation = defaults.bool(forKey: SettingKey.fullWidthPunctuation)
+            engine.backtickOpensSymbolSheet = defaults.bool(forKey: SettingKey.backtickSymbolSheet)
             engine.autoSpacing = defaults.bool(forKey: SettingKey.autoSpacing)
             engine.pageSize = defaults.integer(forKey: SettingKey.pageSize)
             engine.associationsEnabled = defaults.bool(forKey: SettingKey.associations)

@@ -1,5 +1,5 @@
 import Foundation
-import BlendKeyCore
+import CodeZhuyinCore
 
 /// 詞庫單例：首次啟動於背景載入，載妥前按鍵一律放行（不到一秒）。
 enum LexiconStore {
