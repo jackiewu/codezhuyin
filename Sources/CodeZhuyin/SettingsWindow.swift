@@ -69,9 +69,9 @@ private struct SettingsView: View {
         SmartInput.setEnabled(smartInput && (aiCompletion || smartCorrection))
     }
 
-    var body: some View {
+    private var mixedTab: some View {
         Form {
-            Section("中英混輸") {
+            Section {
                 Toggle("Shift 單擊切換中／英", isOn: $shiftToggle)
                 Toggle("中英自動偵測（中打英 Tab 上字；英打注音自動切回）", isOn: $englishHint)
                 Toggle("中英之間自動加空白（我愛 mac）", isOn: $autoSpacing)
@@ -79,10 +79,17 @@ private struct SettingsView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
-            Section("中文輸入") {
+        }
+        .formStyle(.grouped)
+    }
+
+    private var chineseTab: some View {
+        Form {
+            Section {
                 Toggle("全形標點（，。？！…）", isOn: $fullWidthPunctuation)
-                Toggle("反引號 ` 開符號表（關閉＝` 直接輸出）", isOn: $backtickSymbolSheet)
-                Text("預設全部半形：` _ ( ) [ ] = 等鍵跟英文鍵盤一樣直接輸出，Markdown 與程式碼不用切換。")
+                // verbatim：字串字面量會被當 Markdown，成對的 ` 會變成程式碼樣式而消失
+                Toggle(isOn: $backtickSymbolSheet) { Text(verbatim: "反引號 ` 開符號表（關閉＝` 直接輸出）") }
+                Text(verbatim: "預設全部半形：` _ ( ) [ ] = 等鍵跟英文鍵盤一樣直接輸出，Markdown 與程式碼不用切換。")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 Toggle("相似音修正（ㄓㄗ、ㄕㄙ、ㄣㄥ 打錯也找得到）", isOn: $fuzzyReading)
@@ -97,13 +104,25 @@ private struct SettingsView: View {
                 }
                 .pickerStyle(.segmented)
             }
-            Section("語音輸入") {
+        }
+        .formStyle(.grouped)
+    }
+
+    private var voiceTab: some View {
+        Form {
+            Section {
                 Toggle("單按右 Option 開始講話，再按一下結束", isOn: $voiceInput)
                 Text("打一半的字會先送出，講的話接在後面。Esc 取消。使用 Mac 內建語音辨識，在本機執行、不連網。")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
-            Section("智慧輸入（實驗）") {
+        }
+        .formStyle(.grouped)
+    }
+
+    private var smartTab: some View {
+        Form {
+            Section {
                 Toggle("啟用智慧輸入（Breeze）", isOn: $smartInput)
                     .disabled(!smartInputReady)
                     .onChange(of: smartInput) { _, _ in syncSmartInput() }
@@ -119,7 +138,13 @@ private struct SettingsView: View {
                 .padding(.leading, 16)
                 .disabled(!smartInput || !smartInputReady)
             }
-            Section("學習資料") {
+        }
+        .formStyle(.grouped)
+    }
+
+    private var learningTab: some View {
+        Form {
+            Section {
                 Text("碼注音會記住你選過的字、自動學成新詞，並記錄詞與詞的接續習慣，讓斷詞越用越準。資料只存在本機（Application Support），不會離開這台電腦。")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -131,15 +156,29 @@ private struct SettingsView: View {
                     }
                 }
             }
-            Section {
-                Text("設定即時生效。詞庫：小麥注音（MIT）；英文詞表：macOS 內建。")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
+            footer
         }
         .formStyle(.grouped)
-        .frame(width: 380)
-        .fixedSize()
+    }
+
+    private var footer: some View {
+        Section {
+            Text("設定即時生效。詞庫：小麥注音（MIT）；英文詞表：macOS 內建。")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    var body: some View {
+        TabView {
+            mixedTab.tabItem { Label("中英混輸", systemImage: "character.bubble") }
+            chineseTab.tabItem { Label("中文輸入", systemImage: "textformat") }
+            voiceTab.tabItem { Label("語音", systemImage: "mic") }
+            smartTab.tabItem { Label("智慧輸入", systemImage: "sparkles") }
+            learningTab.tabItem { Label("學習資料", systemImage: "brain") }
+            UpdateTab().tabItem { Label("更新", systemImage: "arrow.down.circle") }
+        }
+        .frame(width: 460, height: 420)
         .alert("清除全部學習資料？", isPresented: $showingResetAlert) {
             Button("取消", role: .cancel) {}
             Button("清除", role: .destructive) {
@@ -148,6 +187,72 @@ private struct SettingsView: View {
             }
         } message: {
             Text("選字紀錄、自動學成的新詞、詞語接續習慣都會刪除，無法復原。內建詞庫不受影響。")
+        }
+    }
+}
+
+/// 更新分頁：打開就自動檢查一次
+private struct UpdateTab: View {
+    @State private var status = "檢查中…"
+    @State private var available: Updater.Release?
+    @State private var busy = false
+
+    var body: some View {
+        Form {
+            Section {
+                LabeledContent("目前版本") {
+                    Text(verbatim: "\(Updater.currentVersion)（\(Updater.currentCommit.prefix(7))）")
+                        .textSelection(.enabled)
+                }
+                Text(verbatim: status)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                HStack {
+                    Button("檢查更新") { check() }
+                        .disabled(busy)
+                    if let release = available {
+                        Button("下載並安裝") { install(release) }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(busy)
+                    }
+                }
+            }
+            Section {
+                Text(verbatim: "從 GitHub Releases 的 latest-main 下載（main 每次更新都會自動重建）。安裝後輸入法會自動重啟，不用登出；學習資料會保留。repo 是 private 時需要已登入的 gh（brew install gh && gh auth login）。")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .onAppear { check() }
+    }
+
+    private func check() {
+        busy = true
+        status = "檢查中…"
+        Updater.check { result in
+            busy = false
+            switch result {
+            case .upToDate:
+                available = nil
+                status = "已經是最新版。"
+            case .available(let release):
+                available = release
+                status = "有新版：\(release.title)"
+            case .failed(let message):
+                available = nil
+                status = message
+            }
+        }
+    }
+
+    private func install(_ release: Updater.Release) {
+        busy = true
+        if let error = Updater.install(release) {
+            busy = false
+            status = error
+        } else {
+            status = "下載安裝中，完成後輸入法會自動重啟（約 10 秒）。紀錄：\(Updater.logURL.path)"
         }
     }
 }
