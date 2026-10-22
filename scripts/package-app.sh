@@ -17,7 +17,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/CodeZhuyin"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 plutil -lint -s "$APP/Contents/Info.plist"
-cp Resources/CodeZhuyin.tiff "$APP/Contents/Resources/" 2>/dev/null || echo "（尚無圖示，略過）"
+cp Resources/MenuIcon.tiff "$APP/Contents/Resources/" 2>/dev/null || echo "（尚無圖示，略過）"
 cp -R Resources/zh-Hant.lproj "$APP/Contents/Resources/"
 
 # 詞庫（M1 起由 scripts/build-data.sh 產生）

@@ -163,6 +163,23 @@ public struct SentenceDecoder {
         return segments
     }
 
+    /// 按 ↓ 開的候選：先列從詞段開頭起算的整個詞（「一件」「一見」），
+    /// 再列「結束在游標左邊那個字」的較短詞與單字（「件」「鍵」），最後才是其餘從開頭起算的短詞與單字。
+    /// 這樣游標停在「一件」後面時，「件」可以單獨換成「鍵」，不用先把游標移回去。
+    public func candidateSegments(_ elements: [Element], segmentStart start: Int, length: Int, index: Int) -> [DecodedSegment] {
+        let fromStart = candidateSegments(elements, start: start)
+        guard index > start else { return fromStart }
+        var tail: [DecodedSegment] = []
+        for tailStart in (start + 1)...index {
+            guard let reading = joinedReading(elements, start: tailStart, end: index + 1) else { continue }
+            tail += allUnigrams(reading)
+                .sorted { adjusted($0, reading: reading) > adjusted($1, reading: reading) }
+                .map { DecodedSegment(start: tailStart, length: index + 1 - tailStart, value: $0.value, reading: reading) }
+        }
+        let whole = fromStart.filter { $0.length >= length }
+        return whole + tail + fromStart.filter { $0.length < length }
+    }
+
     private struct Node {
         let segment: DecodedSegment
         let score: Double

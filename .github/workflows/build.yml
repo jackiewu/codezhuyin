@@ -27,7 +27,7 @@ jobs:
 
       - name: Package
         run: |
-          swift scripts/make-icon.swift Resources/CodeZhuyin.tiff  # 選單列圖示「碼」
+          swift scripts/make-icon.swift Resources/MenuIcon.tiff  # 選單列圖示「碼」
           # 偏好設定「更新」分頁拿這個跟 latest-main 比對
           /usr/libexec/PlistBuddy -c "Add :CZBuildCommit string $GITHUB_SHA" Resources/Info.plist
           # 每次建置自動遞增：0.1.<run number>，zip 檔名跟著變

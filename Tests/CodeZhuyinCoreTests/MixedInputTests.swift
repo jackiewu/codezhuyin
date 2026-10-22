@@ -599,3 +599,21 @@ private func run(_ detector: inout ShiftTapDetector, _ events: [(ShiftTapDetecto
     #expect(EnglishDetector(words: TechWords.list).isWord("google"))
     #expect(TechWords.list.allSatisfy { $0.count >= 3 })
 }
+
+@Test func 英文詞後直接打一聲注音不會被空白當成英文() {
+    // 實際：googlerup 天；原意：google今天。整串不是英文詞，但 google＋ㄍㄠ（一聲）拆得開
+    let engine = InputEngine(lexicon: 測試詞庫)
+    engine.englishDetector = 偵測器
+    for key in "googleel" { _ = engine.handle(.character(key)) }
+    _ = engine.handle(.space)
+    #expect(engine.handle(.enter).commitText == "google 高")
+}
+
+@Test func 整串是英文詞時空白照樣是英文加空格() {
+    let engine = InputEngine(lexicon: 測試詞庫)
+    engine.englishDetector = 偵測器
+    for key in "hello" { _ = engine.handle(.character(key)) }
+    _ = engine.handle(.space)
+    #expect(engine.preedit().text.hasPrefix("hello"))
+    #expect(engine.sheetView() == nil)
+}

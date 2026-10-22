@@ -40,6 +40,31 @@ enum SettingKey {
     }
 }
 
+// MARK: - 配色（淺色／深色各一組，跟系統外觀切換）
+
+enum Theme {
+    private static func dynamic(_ light: NSColor, _ dark: NSColor) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
+        })
+    }
+    private static func rgb(_ hex: UInt32, _ alpha: CGFloat = 1) -> NSColor {
+        NSColor(srgbRed: CGFloat(hex >> 16 & 0xFF) / 255, green: CGFloat(hex >> 8 & 0xFF) / 255,
+                blue: CGFloat(hex & 0xFF) / 255, alpha: alpha)
+    }
+    /// 品牌色：靛藍
+    static let brand = dynamic(rgb(0x4F46E5), rgb(0x818CF8))
+    static let brandSoft = dynamic(rgb(0x4F46E5, 0.10), rgb(0x818CF8, 0.18))
+    static let logo = LinearGradient(colors: [Color(nsColor: rgb(0x6366F1)), Color(nsColor: rgb(0x8B5CF6))],
+                                     startPoint: .topLeading, endPoint: .bottomTrailing)
+    static let sidebar = dynamic(rgb(0xF3F3F7), rgb(0x1C1C21))
+    static let page = dynamic(rgb(0xFAFAFC), rgb(0x141418))
+    static let card = dynamic(.white, rgb(0x232329))
+    static let cardBorder = dynamic(rgb(0x000000, 0.07), rgb(0xFFFFFF, 0.08))
+    static let well = dynamic(rgb(0xF1F1F6), rgb(0x2C2C33))
+    static let key = dynamic(.white, rgb(0x3A3A42))
+}
+
 // MARK: - 共用元件（卡片式設定列，參考 0c／隨便打 的設定頁）
 
 /// 一張圓角卡片，裡面的列以分隔線隔開
@@ -49,11 +74,12 @@ private struct Card<Content: View>: View {
         VStack(alignment: .leading, spacing: 0) { content }
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor))
+                    .fill(Theme.card)
+                    .shadow(color: .black.opacity(0.04), radius: 3, x: 0, y: 1)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(Color(nsColor: .separatorColor).opacity(0.6))
+                    .strokeBorder(Theme.cardBorder)
             )
     }
 }
@@ -103,7 +129,7 @@ private struct ToggleRow: View {
     @Binding var isOn: Bool
     var body: some View {
         Row(title: title, detail: detail, indent: indent, showDivider: !last) {
-            Toggle("", isOn: $isOn).toggleStyle(.switch).labelsHidden().controlSize(.small)
+            Toggle("", isOn: $isOn).toggleStyle(.switch).labelsHidden().controlSize(.small).tint(Theme.brand)
         }
     }
 }
@@ -140,16 +166,19 @@ private struct KeyCap: View {
     var body: some View {
         Text(verbatim: label)
             .font(.system(size: 12, weight: .medium, design: .monospaced))
+            .lineLimit(1)
+            .fixedSize()  // 不讓 HStack 把鍵帽擠扁（舊版 Space 被擠成直的）
+            .frame(minWidth: 14)
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
             .background(
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(Color(nsColor: .windowBackgroundColor))
-                    .shadow(color: .black.opacity(0.15), radius: 0, x: 0, y: 1)
+                    .fill(Theme.key)
+                    .shadow(color: .black.opacity(0.18), radius: 0, x: 0, y: 1)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .strokeBorder(Color(nsColor: .separatorColor))
+                    .strokeBorder(Theme.cardBorder)
             )
     }
 }
@@ -173,9 +202,11 @@ private struct DemoCard: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.secondary.opacity(0.08))
+                            .fill(Theme.well)
                     )
-                Text(verbatim: output).font(.system(size: 17, weight: .semibold, design: .monospaced))
+                Text(verbatim: output)
+                    .font(.system(size: 17, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(Theme.brand)
                 Text(verbatim: note)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -187,19 +218,55 @@ private struct DemoCard: View {
     }
 }
 
-/// 鍵帽換行排列
+/// 鍵帽換行排列：依實際寬度自動換行
 private struct FlowKeys: View {
     let keys: [String]
     var body: some View {
-        // 示範用的按鍵都很短，固定每行 7 顆就夠
-        let rows = stride(from: 0, to: keys.count, by: 7).map { Array(keys[$0..<min($0 + 7, keys.count)]) }
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                HStack(spacing: 3) {
-                    ForEach(Array(row.enumerated()), id: \.offset) { _, key in KeyCap(label: key) }
-                }
-            }
+        FlowLayout(spacing: 4) {
+            ForEach(Array(keys.enumerated()), id: \.offset) { _, key in KeyCap(label: key) }
         }
+    }
+}
+
+private struct FlowLayout: Layout {
+    var spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = arrange(width: proposal.width ?? .infinity, subviews: subviews)
+        let width = rows.map(\.width).max() ?? 0
+        let height = rows.map(\.height).reduce(0, +) + spacing * CGFloat(max(0, rows.count - 1))
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for row in arrange(width: bounds.width, subviews: subviews) {
+            var x = bounds.minX
+            for index in row.indices {
+                let size = subviews[index].sizeThatFits(.unspecified)
+                subviews[index].place(at: CGPoint(x: x, y: y), proposal: .unspecified)
+                x += size.width + spacing
+            }
+            y += row.height + spacing
+        }
+    }
+
+    private struct Row { var indices: [Int] = []; var width: CGFloat = 0; var height: CGFloat = 0 }
+
+    private func arrange(width: CGFloat, subviews: Subviews) -> [Row] {
+        var rows: [Row] = [Row()]
+        for index in subviews.indices {
+            let size = subviews[index].sizeThatFits(.unspecified)
+            let extra = rows[rows.count - 1].indices.isEmpty ? size.width : size.width + spacing
+            if rows[rows.count - 1].width + extra > width, !rows[rows.count - 1].indices.isEmpty {
+                rows.append(Row())
+            }
+            let last = rows.count - 1
+            rows[last].width += rows[last].indices.isEmpty ? size.width : size.width + spacing
+            rows[last].height = max(rows[last].height, size.height)
+            rows[last].indices.append(index)
+        }
+        return rows
     }
 }
 
@@ -226,7 +293,7 @@ private enum Page: String, CaseIterable, Identifiable {
         switch self {
         case .overview: return "house"
         case .mixed: return "character.bubble"
-        case .chinese: return "textformat"
+        case .chinese: return "keyboard"
         case .candidates: return "rectangle.split.3x1"
         case .voice: return "mic"
         case .smart: return "sparkles"
@@ -285,7 +352,7 @@ private struct SettingsView: View {
                     .padding(.vertical, 28)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .background(Color(nsColor: .windowBackgroundColor))
+            .background(Theme.page)
         }
         .frame(width: 820, height: 600)
         .alert("清除全部學習資料？", isPresented: $showingResetAlert) {
@@ -308,7 +375,7 @@ private struct SettingsView: View {
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(width: 34, height: 34)
-                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.accentColor))
+                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.logo))
                 VStack(alignment: .leading, spacing: 0) {
                     Text(verbatim: "碼注音").font(.system(size: 16, weight: .bold))
                     Text(verbatim: "CodeZhuyin").font(.system(size: 10.5)).foregroundStyle(.secondary)
@@ -344,7 +411,7 @@ private struct SettingsView: View {
         .padding(12)
         .frame(width: 200)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(Color(nsColor: .underPageBackgroundColor))
+        .background(Theme.sidebar)
     }
 
     private func sidebarItem(_ item: Page) -> some View {
@@ -353,17 +420,19 @@ private struct SettingsView: View {
             page = item
         } label: {
             HStack(spacing: 9) {
-                Image(systemName: item.icon).frame(width: 18)
+                Image(systemName: item.icon)
+                    .frame(width: 18)
+                    .foregroundStyle(selected ? Theme.brand : Color.secondary)
                 Text(verbatim: item.title)
+                    .foregroundStyle(selected ? Theme.brand : Color.primary)
                 Spacer()
             }
             .font(.system(size: 13, weight: selected ? .semibold : .regular))
-            .foregroundStyle(selected ? Color.white : Color.primary)
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
             .background(
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(selected ? Color.accentColor : Color.clear)
+                    .fill(selected ? Theme.brandSoft : Color.clear)
             )
             .contentShape(Rectangle())
         }
@@ -557,10 +626,55 @@ private struct SettingsView: View {
 }
 
 /// 更新頁：打開就自動檢查一次
+/// 一行可複製的終端機指令
+private struct CommandRow: View {
+    let title: String
+    let detail: String
+    let command: String
+    var last = false
+    @State private var copied = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(verbatim: title).font(.system(size: 13, weight: .semibold))
+                    Text(verbatim: detail)
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                HStack(spacing: 8) {
+                    Text(verbatim: command)
+                        .font(.system(size: 12, design: .monospaced))
+                        .textSelection(.enabled)
+                        .lineLimit(1)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.well))
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(command, forType: .string)
+                        copied = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { copied = false }
+                    } label: {
+                        Label(copied ? "已複製" : "複製", systemImage: copied ? "checkmark" : "doc.on.doc")
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            if !last { Divider().padding(.leading, 16) }
+        }
+    }
+}
+
 private struct UpdatePage: View {
     @State private var status = "檢查中…"
     @State private var available: Updater.Release?
     @State private var busy = false
+    @State private var progress: Updater.Progress?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -569,14 +683,29 @@ private struct UpdatePage: View {
                 Row(title: "目前版本", detail: "\(Updater.currentVersion)（\(Updater.currentCommit.prefix(7))）") {
                     Button("檢查更新") { check() }.disabled(busy)
                 }
-                Row(title: available.map { "有新版：\($0.title)" } ?? "狀態", detail: status, showDivider: false) {
-                    if let release = available {
+                Row(title: available.map { "有新版：\($0.title)" } ?? "狀態", detail: status, showDivider: progress != nil) {
+                    if let release = available, progress == nil {
                         Button("下載並安裝") { install(release) }
                             .buttonStyle(.borderedProminent)
+                            .tint(Theme.brand)
                             .disabled(busy)
-                    } else if busy {
+                    } else if busy, progress == nil {
                         ProgressView().controlSize(.small)
                     }
+                }
+                if let progress {
+                    VStack(alignment: .leading, spacing: 6) {
+                        if let fraction = progress.fraction {
+                            ProgressView(value: fraction).tint(Theme.brand)
+                        } else {
+                            ProgressView().progressViewStyle(.linear).tint(Theme.brand)
+                        }
+                        Text(verbatim: progress.text)
+                            .font(.system(size: 11.5, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                 }
             }
             if let release = available, !release.notes.isEmpty {
@@ -589,9 +718,20 @@ private struct UpdatePage: View {
                         .padding(16)
                 }
             }
-            Text(verbatim: "安裝後輸入法會自動重啟，不用登出，學習資料會保留。repo 是 private 時需要已登入的 gh（brew install gh && gh auth login）。")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+            SectionTitle(text: "疑難排解", note: "安裝後會自動重啟，學習資料會保留，不用登出")
+            Card {
+                CommandRow(
+                    title: "更新後版本號沒變？",
+                    detail: "舊的輸入法行程還在跑。貼到終端機執行，再點一下任何輸入框就會載入新版；仍不行就登出再登入。",
+                    command: Updater.restartCommand
+                )
+                CommandRow(
+                    title: "檢查不到新版（repo 是 private）",
+                    detail: "需要已登入的 GitHub CLI。",
+                    command: Updater.ghSetupCommand,
+                    last: true
+                )
+            }
         }
         .onAppear { check() }
     }
@@ -607,7 +747,7 @@ private struct UpdatePage: View {
                 status = "已經是最新版。"
             case .available(let release):
                 available = release
-                status = "有新版：\(release.title)"
+                status = "按「下載並安裝」更新，約 10 秒。"
             case .failed(let message):
                 available = nil
                 status = message
@@ -617,14 +757,17 @@ private struct UpdatePage: View {
 
     private func install(_ release: Updater.Release) {
         busy = true
-        status = "下載安裝中…"
-        Updater.install(release) { error in
+        status = "更新中，完成後輸入法會自動重啟。"
+        progress = Updater.Progress(fraction: nil, text: "連線中…")
+        Updater.install(release, progress: { progress = $0 }) { error in
             if let error {
                 busy = false
+                progress = nil
                 status = error
                 return
             }
             available = nil
+            progress = Updater.Progress(fraction: 1, text: "已完成")
             status = "已完成！碼注音即將重新啟動，切到任何輸入框就會載入新版。"
             // 讓使用者看到完成訊息再結束行程（視窗會跟著關閉）
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) { Updater.restart() }

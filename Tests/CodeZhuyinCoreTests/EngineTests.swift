@@ -33,18 +33,20 @@ private func type(_ engine: InputEngine, _ keys: String) {
     let sheet = engine.sheetView()
     #expect(sheet != nil)
     #expect(sheet?.items.first?.value == "你好")  // 長詞在前，且目前走法預選
-    // 候選順序：你好、你、妳、擬 → 選第 3 個「妳」
-    _ = engine.handle(.character("3"))
+    // 候選順序：你好、好（游標左邊的字可單獨換）、你、妳、擬 → 選第 4 個「妳」
+    #expect(sheet?.items.map(\.value) == ["你好", "好", "你", "妳", "擬"])
+    _ = engine.handle(.character("4"))
     #expect(engine.sheetView() == nil)
     #expect(engine.preedit().text == "妳好")
 }
 
 @Test func 候選窗直式導航() {
     let engine = makeEngine()
-    type(engine, "su3cl3 ")  // 開候選：你好、你、妳、擬
+    type(engine, "su3cl3 ")  // 開候選：你好、好、你、妳、擬
+    _ = engine.handle(.arrowDown)  // ↓ → 好
     _ = engine.handle(.arrowDown)  // ↓ → 你
     _ = engine.handle(.arrowDown)  // ↓ → 妳
-    #expect(engine.sheetView()?.highlightedInPage == 2)
+    #expect(engine.sheetView()?.highlightedInPage == 3)
     _ = engine.handle(.arrowUp)    // ↑ → 你
     _ = engine.handle(.arrowDown)  // ↓ → 妳
     _ = engine.handle(.enter)      // 選「妳」
@@ -161,4 +163,17 @@ private func type(_ engine: InputEngine, _ keys: String) {
     #expect(engine.sheetView()?.pageIndex == 1)
     _ = engine.handle(.arrowUp)
     #expect(engine.sheetView()?.pageIndex == 0)
+}
+
+@Test func 游標在詞尾可以單獨換最後一個字() {
+    // 一件 → 想換成「一鍵」：游標在「件」後面時，候選要列出「件」這個字的其他寫法
+    let engine = makeEngine()
+    type(engine, "g4ru,4")  // ㄕˋ ㄐㄧㄝˋ → 世界
+    #expect(engine.preedit().text == "世界")
+    _ = engine.handle(.space)
+    let items = engine.sheetView()?.items.map(\.value) ?? []
+    #expect(items.prefix(2) == ["世界", "界"])  // 整個詞之後緊接著游標左邊那個字
+    _ = engine.handle(.character("2"))
+    #expect(engine.sheetView() == nil)
+    #expect(engine.preedit().text == "是界")  // 拆開後「是」自己重走
 }

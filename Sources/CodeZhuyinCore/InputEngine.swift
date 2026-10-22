@@ -271,7 +271,8 @@ public final class InputEngine {
             if !composer.isEmpty {
                 // 偵測到英文：預設空白＝英文加一個空格（brew install …），
                 // 關掉 spaceCommitsEnglish 才改開中英並列選字（↓ 永遠可以開）
-                if let hint = englishHint {
+                // 例外：整串不是英文詞、但「英文詞＋一聲注音」拆得開（google＋ㄐㄧㄣ＝google今），照注音組
+                if let hint = englishHint, !splitsIntoWordAndTone1(hint) {
                     if spaceCommitsEnglish { return acceptEnglish(hint, then: " ") }
                     openBilingualSheet()
                     return .consumed
@@ -695,7 +696,22 @@ public final class InputEngine {
     /// 前面的鍵被後面的覆寫掉）。這時拆成「英文詞／數字＋剩下組出的音節」，前段越長越優先。
     /// 只在「整串查不到」或「中途有覆寫」時才試——正常打注音兩者都不會發生。
     /// ponytail: 一聲（空白收尾）且整串都是字母時會先被英文提示攔去開中英並列窗，那條路不拆
+    /// 前段是詞典裡的英文詞（或數字）優先；找不到才退而接受「前段自己有覆寫、看起來像英文」的拆法。
+    /// 否則 googlerup（google＋今）會先被拆成 googleru＋ㄣ。
     private func splitLiteralPrefix(_ keys: String, composed: Syllable, overwritten: Bool) -> (String, Syllable)? {
+        splitLiteralPrefix(keys, composed: composed, overwritten: overwritten, wordsOnly: true)
+            ?? splitLiteralPrefix(keys, composed: composed, overwritten: overwritten, wordsOnly: false)
+    }
+
+    /// 空白鍵前檢查：英文提示整串不是詞，但能拆成「詞典英文詞＋一聲音節」
+    private func splitsIntoWordAndTone1(_ hint: String) -> Bool {
+        guard englishDetector?.isWord(hint) != true else { return false }
+        var probe = composer
+        guard case .composed(let syllable) = probe.press(" ") else { return false }
+        return splitLiteralPrefix(composer.rawKeys + " ", composed: syllable, overwritten: true, wordsOnly: true) != nil
+    }
+
+    private func splitLiteralPrefix(_ keys: String, composed: Syllable, overwritten: Bool, wordsOnly: Bool) -> (String, Syllable)? {
         let wholeKnown = !lexicon.unigrams(composed.canonical).isEmpty
         guard overwritten || !wholeKnown else { return nil }
         let chars = Array(keys)
@@ -709,7 +725,7 @@ public final class InputEngine {
             let isWord = englishHintEnabled && cut >= (wholeKnown ? 3 : 2) && alphanumeric
                 && englishDetector?.isWord(prefix) == true
             // 詞典沒收的英文（k8s、新產品名）：前段自己就有注音覆寫＝不像注音，也算英文
-            let looksEnglish = englishHintEnabled && cut >= 3 && alphanumeric
+            let looksEnglish = !wordsOnly && englishHintEnabled && cut >= 3 && alphanumeric
                 && prefix.contains(where: \.isLetter) && Self.overwrites(prefix) >= 1
             guard isNumber || isWord || looksEnglish else { continue }
             var rest = SyllableComposer()
@@ -1018,9 +1034,13 @@ public final class InputEngine {
             )
             return
         }
-        var all = decoder.candidateSegments(elements, start: anchor.start)
+        var all = decoder.candidateSegments(
+            elements, segmentStart: anchor.start, length: anchor.length, index: anchorIndex
+        )
         guard !all.isEmpty else { return }
-        let highlighted = all.firstIndex { $0.value == anchor.value && $0.length == anchor.length } ?? 0
+        let highlighted = all.firstIndex {
+            $0.value == anchor.value && $0.start == anchor.start && $0.length == anchor.length
+        } ?? 0
         // 今天、現在…：日期時間寫法緊接在目前的詞後面，第一頁就看得到
         // ponytail: 只認整個詞剛好是「今天」的段；被併進長詞（今天晚上）時不出現
         if let reading = anchor.reading {
@@ -1181,7 +1201,10 @@ public final class InputEngine {
     /// 游標所在的詞段（按 ↓ 開候選的對象）
     private func anchorSegment() -> DecodedSegment? {
         guard !elements.isEmpty else { return nil }
-        let index = max(0, min(cursor - 1, elements.count - 1))
+        let index = anchorIndex
         return walked.first { $0.start <= index && index < $0.end }
     }
+
+    /// 游標左邊那個字的位置
+    private var anchorIndex: Int { max(0, min(cursor - 1, elements.count - 1)) }
 }

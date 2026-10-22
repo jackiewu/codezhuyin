@@ -1,5 +1,5 @@
 // 產生選單列模板圖示：圓角方塊挖空「碼」字（模板圖，僅 alpha 有意義）
-// 用法：swift scripts/make-icon.swift Resources/CodeZhuyin.tiff
+// 用法：swift scripts/make-icon.swift Resources/MenuIcon.tiff
 import AppKit
 
 func render(pixels: Int) -> NSBitmapImageRep {
@@ -28,7 +28,7 @@ func render(pixels: Int) -> NSBitmapImageRep {
     return rep
 }
 
-let output = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "Resources/CodeZhuyin.tiff"
+let output = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "Resources/MenuIcon.tiff"
 let reps = [render(pixels: 16), render(pixels: 32)]
 guard let tiff = NSBitmapImageRep.representationOfImageReps(in: reps, using: .tiff, properties: [:]) else {
     fatalError("TIFF 產生失敗")

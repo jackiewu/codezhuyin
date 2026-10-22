@@ -45,6 +45,6 @@
 		<string>Hant</string>
 	</array>
 	<key>tsInputMethodIconFileKey</key>
-	<string>CodeZhuyin.tiff</string>
+	<string>MenuIcon.tiff</string>
 </dict>
 </plist>
