@@ -4,8 +4,8 @@ import Testing
 
 // 輸出簡體：殼層注入的轉換與這裡相同（ICU Hant-Hans）
 
-private let 繁轉簡: (String) -> String = {
-    $0.applyingTransform(StringTransform("Hant-Hans"), reverse: false) ?? $0
+private func 繁轉簡(_ text: String) -> String {
+    text.applyingTransform(StringTransform("Hant-Hans"), reverse: false) ?? text
 }
 
 @Test func 系統的繁轉簡可用() {
