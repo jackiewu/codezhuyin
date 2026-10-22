@@ -30,6 +30,9 @@ jobs:
           swift scripts/make-icon.swift Resources/CodeZhuyin.tiff  # 選單列圖示「碼」
           # 偏好設定「更新」分頁拿這個跟 latest-main 比對
           /usr/libexec/PlistBuddy -c "Add :CZBuildCommit string $GITHUB_SHA" Resources/Info.plist
+          # 每次建置自動遞增：0.1.<run number>，zip 檔名跟著變
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 0.1.$GITHUB_RUN_NUMBER" Resources/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER" Resources/Info.plist
           CODESIGN_IDENTITY=- scripts/make-release.sh
           ls -la build
 
@@ -47,7 +50,7 @@ jobs:
           gh release delete latest-main --yes --cleanup-tag || true
           gh release create latest-main build/CodeZhuyin-*.zip \
             --prerelease --target "$GITHUB_SHA" \
-            --title "最新開發版（main @ ${GITHUB_SHA::7}）" \
+            --title "最新開發版 0.1.$GITHUB_RUN_NUMBER（main @ ${GITHUB_SHA::7}）" \
             --notes "main 分支自動建置，ad-hoc 簽章。解壓後在資料夾內執行 xattr -dr com.apple.quarantine . && ./安裝碼注音.command"
 
       - name: Publish tagged release
