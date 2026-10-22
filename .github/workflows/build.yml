@@ -45,7 +45,7 @@ jobs:
           gh release create latest-main build/CodeZhuyin-*.zip \
             --prerelease --target "$GITHUB_SHA" \
             --title "最新開發版（main @ ${GITHUB_SHA::7}）" \
-            --notes "main 分支自動建置，ad-hoc 簽章。解壓後在「安裝碼注音.command」按右鍵 › 打開。"
+            --notes "main 分支自動建置，ad-hoc 簽章。解壓後在資料夾內執行 xattr -dr com.apple.quarantine . && ./安裝碼注音.command"
 
       - name: Publish tagged release
         if: startsWith(github.ref, 'refs/tags/v')
