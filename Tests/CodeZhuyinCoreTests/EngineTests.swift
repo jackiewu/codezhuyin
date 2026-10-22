@@ -147,3 +147,18 @@ private func type(_ engine: InputEngine, _ keys: String) {
     type(engine, "g")  // 開始打注音（ㄕ 本身就長在游標處）
     #expect(!engine.preedit().text.contains(InputEngine.caretMark))
 }
+
+@Test func 橫式候選窗_左右逐項_上下翻頁() {
+    let engine = InputEngine(lexicon: 測試詞庫)
+    engine.horizontalCandidates = true
+    engine.pageSize = 2
+    for key in "su3" { _ = engine.handle(.character(key)) }
+    _ = engine.handle(.arrowDown)  // 開候選：你 妳｜擬
+    #expect(engine.sheetView()?.horizontal == true)
+    _ = engine.handle(.arrowRight)
+    #expect(engine.sheetView()?.highlightedInPage == 1)
+    _ = engine.handle(.arrowDown)  // 下一頁
+    #expect(engine.sheetView()?.pageIndex == 1)
+    _ = engine.handle(.arrowUp)
+    #expect(engine.sheetView()?.pageIndex == 0)
+}

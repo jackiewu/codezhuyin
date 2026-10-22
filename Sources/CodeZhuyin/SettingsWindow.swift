@@ -9,6 +9,7 @@ enum SettingKey {
     static let backtickSymbolSheet = "backtickSymbolSheet"
     static let simplifiedOutput = "simplifiedOutput"
     static let spaceCommitsEnglish = "spaceCommitsEnglish"
+    static let horizontalCandidates = "horizontalCandidates"
     static let autoSpacing = "autoSpacing"
     static let pageSize = "pageSize"
     static let fuzzyReading = "fuzzyReading"
@@ -26,6 +27,7 @@ enum SettingKey {
             backtickSymbolSheet: false,
             simplifiedOutput: false,
             spaceCommitsEnglish: true,
+            horizontalCandidates: false,
             autoSpacing: true,
             pageSize: 9,
             fuzzyReading: false,
@@ -45,6 +47,7 @@ private struct SettingsView: View {
     @AppStorage(SettingKey.backtickSymbolSheet) private var backtickSymbolSheet = false
     @AppStorage(SettingKey.simplifiedOutput) private var simplifiedOutput = false
     @AppStorage(SettingKey.spaceCommitsEnglish) private var spaceCommitsEnglish = true
+    @AppStorage(SettingKey.horizontalCandidates) private var horizontalCandidates = false
     @AppStorage(SettingKey.autoSpacing) private var autoSpacing = true
     @AppStorage(SettingKey.pageSize) private var pageSize = 9
     @AppStorage(SettingKey.fuzzyReading) private var fuzzyReading = false
@@ -111,6 +114,7 @@ private struct SettingsView: View {
                     .foregroundStyle(.secondary)
                 Toggle("聯想詞（打字時提示你常接的下一個詞，Tab＋數字選）", isOn: $associations)
 
+                Toggle("橫式候選字窗（←→ 選字、↑↓ 翻頁）", isOn: $horizontalCandidates)
                 Picker("候選字窗每頁字數", selection: $pageSize) {
                     Text("7").tag(7)
                     Text("9").tag(9)

@@ -118,6 +118,8 @@ public final class InputEngine {
 
     /// 全形標點開關（偏好設定）。碼注音預設關：工程師要的是鍵盤上的半形 ASCII 標點
     public var fullWidthPunctuation = false
+    /// 橫式候選字窗（偏好設定）：←→ 逐項、↑↓ 翻頁
+    public var horizontalCandidates = false
     /// 偵測到英文時空白＝英文＋空格、. , / ; - 照英文打（偏好設定）。關掉＝空白開中英並列選字
     public var spaceCommitsEnglish = true
     /// 反引號開符號表（偏好設定）。碼注音預設關：` 一律原樣輸出（Markdown、行內程式碼）
@@ -462,7 +464,8 @@ public final class InputEngine {
                 highlightedInPage: bilingual.highlighted,
                 pageIndex: 0,
                 pageCount: 1,
-                anchorUTF16: current.caretUTF16 - composingText.utf16.count
+                anchorUTF16: current.caretUTF16 - composingText.utf16.count,
+                horizontal: horizontalCandidates
             )
         }
         guard let sheet, !sheet.all.isEmpty else { return nil }
@@ -479,7 +482,8 @@ public final class InputEngine {
             highlightedInPage: sheet.highlighted - page * pageSize,
             pageIndex: page,
             pageCount: pageCount,
-            anchorUTF16: anchorUTF16
+            anchorUTF16: anchorUTF16,
+            horizontal: horizontalCandidates
         )
     }
 
@@ -738,11 +742,28 @@ public final class InputEngine {
             current.highlighted = (current.highlighted + 1) % current.all.count
             sheet = current
             return .consumed
+        // 橫式：↑↓ 翻頁（←→ 逐項，見下）
+        case .arrowDown where horizontalCandidates:
+            current.highlighted = min(current.all.count - 1, (current.highlighted / pageSize + 1) * pageSize)
+            sheet = current
+            return .consumed
+        case .arrowUp where horizontalCandidates:
+            current.highlighted = max(0, (current.highlighted / pageSize - 1) * pageSize)
+            sheet = current
+            return .consumed
         case .arrowDown:
             current.highlighted = min(current.all.count - 1, current.highlighted + 1)
             sheet = current
             return .consumed
         case .arrowUp:
+            current.highlighted = max(0, current.highlighted - 1)
+            sheet = current
+            return .consumed
+        case .arrowRight where horizontalCandidates:
+            current.highlighted = min(current.all.count - 1, current.highlighted + 1)
+            sheet = current
+            return .consumed
+        case .arrowLeft where horizontalCandidates:
             current.highlighted = max(0, current.highlighted - 1)
             sheet = current
             return .consumed

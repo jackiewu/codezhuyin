@@ -35,6 +35,12 @@ private struct CandidateView: View {
                 .contentShape(Rectangle())
                 .onTapGesture { onSelect(index) }
             }
+            if sheet.pageCount > 1 {
+                Text("\(sheet.pageIndex + 1)/\(sheet.pageCount) ⇡⇣")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                    .padding(.horizontal, 6)
+            }
         }
         .padding(3)
         .fixedSize()
