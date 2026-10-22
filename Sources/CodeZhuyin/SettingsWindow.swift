@@ -579,6 +579,16 @@ private struct UpdatePage: View {
                     }
                 }
             }
+            if let release = available, !release.notes.isEmpty {
+                SectionTitle(text: "新版內容")
+                Card {
+                    Text(verbatim: release.notes.components(separatedBy: "\n---").first ?? release.notes)
+                        .font(.system(size: 12))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                }
+            }
             Text(verbatim: "安裝後輸入法會自動重啟，不用登出，學習資料會保留。repo 是 private 時需要已登入的 gh（brew install gh && gh auth login）。")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)

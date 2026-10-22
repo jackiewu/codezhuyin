@@ -47,11 +47,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # 說明＝CHANGELOG.md 的「未發佈」段落＋安裝步驟
+          awk '/^## 未發佈/{f=1;next} /^## /{f=0} f' CHANGELOG.md > notes.md
+          printf '\n---\n安裝：解壓後在資料夾內執行 `xattr -dr com.apple.quarantine . && ./安裝碼注音.command`；已安裝 0.1.13 以後的版本可直接用偏好設定的「更新」頁。\n' >> notes.md
           gh release delete latest-main --yes --cleanup-tag || true
           gh release create latest-main build/CodeZhuyin-*.zip \
             --prerelease --target "$GITHUB_SHA" \
             --title "最新開發版 0.1.${GITHUB_RUN_NUMBER}（main @ ${GITHUB_SHA::7}）" \
-            --notes "main 分支自動建置，ad-hoc 簽章。解壓後在資料夾內執行 xattr -dr com.apple.quarantine . && ./安裝碼注音.command"
+            --notes-file notes.md
 
       - name: Publish tagged release
         if: startsWith(github.ref, 'refs/tags/v')

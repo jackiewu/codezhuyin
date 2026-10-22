@@ -13,6 +13,8 @@ enum Updater {
     struct Release: Equatable {
         let commit: String
         let title: String
+        /// Release 說明（CHANGELOG 的未發佈段落）
+        let notes: String
         /// 匿名可下載的網址（public repo 才有）；nil＝要走 gh
         let downloadURL: URL?
     }
@@ -78,6 +80,7 @@ enum Updater {
         return Release(
             commit: commit,
             title: json["name"] as? String ?? tag,
+            notes: json["body"] as? String ?? "",
             downloadURL: (zip?["browser_download_url"] as? String).flatMap(URL.init(string:))
         )
     }
@@ -88,14 +91,17 @@ enum Updater {
         guard let gh = ghPath else {
             return .failure("讀不到 GitHub 上的版本。repo 是 private 時需要 gh：在終端機執行 brew install gh && gh auth login")
         }
-        let (status, output) = run(gh, ["release", "view", tag, "-R", repo, "--json", "targetCommitish,name"])
+        let (status, output) = run(gh, ["release", "view", tag, "-R", repo, "--json", "targetCommitish,name,body"])
         guard status == 0, let data = output.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let commit = json["targetCommitish"] as? String else {
             let reason = output.trimmingCharacters(in: .whitespacesAndNewlines)
             return .failure("gh 查詢失敗：\(reason.isEmpty ? "未知錯誤" : reason)（試試在終端機執行 gh auth login）")
         }
-        return .success(Release(commit: commit, title: json["name"] as? String ?? tag, downloadURL: nil))
+        return .success(Release(
+            commit: commit, title: json["name"] as? String ?? tag,
+            notes: json["body"] as? String ?? "", downloadURL: nil
+        ))
     }
 
     private static func run(_ path: String, _ arguments: [String]) -> (Int32, String) {
