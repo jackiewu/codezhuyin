@@ -106,3 +106,11 @@ private let 指令詞典 = EnglishDetector(words: ["brew", "install", "llama", "
     type(engine, "google su3")
     #expect(engine.handle(.enter).commitText == "google 你")
 }
+
+@Test func 分號Tab照鍵盤原樣送出() {
+    // 大千的 ; 是 ㄤ：要分號就 ; Tab
+    let engine = InputEngine(lexicon: 測試詞庫)
+    _ = engine.handle(.character(";"))
+    _ = engine.handle(.tab)
+    #expect(engine.handle(.enter).commitText == ";")
+}

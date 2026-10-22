@@ -350,6 +350,14 @@ public final class InputEngine {
                 insertLiteral(hint)
                 return .consumed
             }
+            // 其餘組字中的鍵：Tab＝照鍵盤原樣送出（; 是 ㄤ，要分號就 ; Tab）
+            if !composer.isEmpty {
+                let raw = composer.rawKeys
+                composer.clear()
+                cancelNumericRun()
+                insertLiteral(raw)
+                return .consumed
+            }
             return isIdle ? .ignored : .consumed
         case .arrowUp, .pageUp, .pageDown:
             return isIdle ? .ignored : .consumed

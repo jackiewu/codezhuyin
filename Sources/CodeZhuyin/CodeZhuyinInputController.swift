@@ -280,15 +280,29 @@ class CodeZhuyinInputController: IMKInputController {
     /// Shift 單擊切換中英。flagsChanged 在 NSMenu／開存檔對話框中收不到（平台限制）。
     private func handleFlagsChanged(_ event: NSEvent, client: IMKTextInput) {
         // Caps Lock 切換：亮＝英數直通模式（比照內建注音的習慣）
+        // 每按一次都切到「另一個」模式，不管目前的英文是 Caps Lock 還是 Shift 切出來的：
+        // Shift 切成英文後按 Caps Lock（燈亮）＝回中文（當燈沒亮），再按（燈滅）＝英文。
         if event.keyCode == UInt16(kVK_CapsLock) {
             let capsOn = event.modifierFlags.contains(.capsLock)
-            Self.capsLockOverridden = false  // 使用者自己切換，恢復尊重大寫燈
+            let wasOverridden = Self.capsLockOverridden
             Self.chineseDetector.reset()
-            if capsOn, let engine, let text = engine.flush() {
+            if capsOn {
+                if Self.chineseMode {
+                    Self.capsLockOverridden = false  // 燈亮＝英文
+                } else {
+                    Self.chineseMode = true          // Shift 英文中按下：回中文，忽略燈
+                    Self.capsLockOverridden = true
+                }
+            } else {
+                Self.capsLockOverridden = false
+                Self.chineseMode = !wasOverridden    // 燈亮卻在打中文時按下＝切英文
+            }
+            let chinese = Self.chineseMode && !(capsOn && !Self.capsLockOverridden)
+            if !chinese, let engine, let text = engine.flush() {
                 client.insertText(text, replacementRange: kNoRange)
             }
             if let engine { syncUI(engine, client: client) }
-            ModeHUD.shared.flash(chinese: !capsOn && Self.chineseMode, near: caretLineRect(client))
+            ModeHUD.shared.flash(chinese: chinese, near: caretLineRect(client))
             return
         }
         let flags = event.modifierFlags

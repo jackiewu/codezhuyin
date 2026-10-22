@@ -36,7 +36,7 @@ private struct GuideView: View {
         Shortcut(keys: "長按字母／數字", detail: "直接輸出那個字元，例如按住 g 出 g、按住 5 出 5"),
         Shortcut(keys: "打數字", detail: "直接打 1.62、1mm、0.4mm 再按 Tab 就會輸出原樣；單一數字打 1 按空白即可"),
         Shortcut(keys: "Shift 單擊", detail: "整體切換中／英模式，游標旁會閃「中」或「A」"),
-        Shortcut(keys: "Tab", detail: "接受英文偵測提示，直接上英文字"),
+        Shortcut(keys: "Tab", detail: "接受英文偵測提示，直接上英文字；沒有提示時把打到一半的鍵照鍵盤原樣送出（分號：; Tab）"),
     ]
 
     private let smart = [
