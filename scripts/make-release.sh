@@ -22,9 +22,10 @@ cat > "$STAGE/請先讀我.txt" <<'EOF'
 碼注音 CodeZhuyin — 中英混輸零阻礙的 macOS 注音輸入法
 
 【安裝】
-1. 在「安裝碼注音.command」上按右鍵 →「打開」→ 再按一次「打開」
-   （因為這是免費開源軟體、沒有付費的 Apple 開發者憑證，
-     所以第一次要用右鍵打開來略過系統警告，這是正常的）
+1. 沒有付費的 Apple 開發者憑證，macOS 會擋下安裝檔，這是正常的。
+   打開「終端機」，cd 到這個資料夾後執行：
+     xattr -dr com.apple.quarantine . && ./安裝碼注音.command
+   或是雙擊被擋之後，到「系統設定 › 隱私權與安全性」按「仍要打開」
 2. 依畫面指示登出再登入
 3. 系統設定 › 鍵盤 › 輸入來源 › 編輯 › ＋ › 繁體中文 › 碼注音
 
@@ -50,5 +51,5 @@ if [[ "$IDENTITY" == *"Developer ID"* ]]; then
   echo "偵測到 Developer ID —— 可接著公證："
   echo "  xcrun notarytool submit \"$ZIP\" --keychain-profile <設定檔> --wait"
 else
-  echo "注意：非 Developer ID 簽章，他人下載後需依「請先讀我.txt」用右鍵開啟安裝程式。"
+  echo "注意：非 Developer ID 簽章，他人下載後需依「請先讀我.txt」移除隔離屬性再安裝。"
 fi
