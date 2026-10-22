@@ -243,6 +243,7 @@ private func engineWithHabits() -> (InputEngine, UserPhraseStore) {
 
 @Test func AI校正可以跨過標點_標點本身不改() {
     let engine = InputEngine(lexicon: 測試詞庫)
+    engine.fullWidthPunctuation = true  // 這兩個情境測的是組字區裡夾全形標點
     type(engine, "su3<cl3")  // 你，好
     #expect(engine.preedit().text == "你，好")
     #expect(engine.correctionTarget?.readings == ["ㄋㄧˇ", nil, "ㄏㄠˇ"])
@@ -253,6 +254,7 @@ private func engineWithHabits() -> (InputEngine, UserPhraseStore) {
 
 @Test func AI校正的文法只允許同音字() {
     let engine = InputEngine(lexicon: 測試詞庫)
+    engine.fullWidthPunctuation = true  // 這兩個情境測的是組字區裡夾全形標點
     type(engine, "su3<cl3")  // 你，好
     #expect(engine.correctionGrammar == #"root ::= ("你" | "妳" | "擬") ("，") ("好")"#)
 }
