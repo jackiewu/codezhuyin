@@ -617,11 +617,17 @@ private struct UpdatePage: View {
 
     private func install(_ release: Updater.Release) {
         busy = true
-        if let error = Updater.install(release) {
-            busy = false
-            status = error
-        } else {
-            status = "下載安裝中，完成後輸入法會自動重啟（約 10 秒）。紀錄：\(Updater.logURL.path)"
+        status = "下載安裝中…"
+        Updater.install(release) { error in
+            if let error {
+                busy = false
+                status = error
+                return
+            }
+            available = nil
+            status = "已完成！碼注音即將重新啟動，切到任何輸入框就會載入新版。"
+            // 讓使用者看到完成訊息再結束行程（視窗會跟著關閉）
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { Updater.restart() }
         }
     }
 }

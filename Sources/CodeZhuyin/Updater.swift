@@ -119,16 +119,17 @@ enum Updater {
 
     // MARK: - 安裝
 
-    /// 背景跑安裝腳本後立刻回傳。腳本最後會結束本行程（pkill），所以用 nohup 脫離，
+    /// 背景跑安裝腳本，結束時（主執行緒）回報：nil＝成功，否則是錯誤訊息。
     /// 進度與錯誤寫在 ~/Library/Logs/CodeZhuyin-update.log。
-    static func install(_ release: Release) -> String? {
+    /// 成功後由呼叫端結束本行程（restart），下次聚焦輸入框系統就載入新版。
+    static func install(_ release: Release, completion: @escaping (String?) -> Void) {
         let download: String
         if let url = release.downloadURL {
             download = "curl -fsSL -o \"$TMP/update.zip\" '\(url.absoluteString)'"
         } else if let gh = ghPath {
             download = "'\(gh)' release download \(tag) -R \(repo) -p 'CodeZhuyin-*.zip' -O \"$TMP/update.zip\""
         } else {
-            return "找不到下載方式：請安裝 gh（brew install gh && gh auth login）"
+            return completion("找不到下載方式：請安裝 gh（brew install gh && gh auth login）")
         }
         let script = """
             set -euo pipefail
@@ -144,20 +145,36 @@ enum Updater {
             DEST="$HOME/Library/Input Methods"
             mkdir -p "$DEST"
             /usr/bin/rsync -a --delete "$APP/" "$DEST/CodeZhuyin.app/"
-            echo "已安裝，重啟輸入法"
-            /usr/bin/pkill -x CodeZhuyin || true
+            echo "已安裝"
             """
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/nohup")
-        process.arguments = ["/bin/bash", "-c", script]
+        process.executableURL = URL(fileURLWithPath: "/bin/bash")
+        process.arguments = ["-c", script]
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
+        process.terminationHandler = { finished in
+            let ok = finished.terminationStatus == 0
+            DispatchQueue.main.async {
+                completion(ok ? nil : "更新失敗：\(lastLogLine() ?? "未知錯誤")（完整紀錄：\(logURL.path)）")
+            }
+        }
         do {
             try process.run()
         } catch {
-            return "無法啟動更新：\(error.localizedDescription)"
+            return completion("無法啟動更新：\(error.localizedDescription)")
         }
         Log.general.info("更新：開始安裝 \(release.commit, privacy: .public)")
-        return nil
+    }
+
+    private static func lastLogLine() -> String? {
+        guard let text = try? String(contentsOf: logURL, encoding: .utf8) else { return nil }
+        return text.split(separator: "\n").last.map(String.init)
+    }
+
+    /// 結束本行程讓系統載入新版（學習資料先存檔，同 SIGTERM 的處理）
+    static func restart() {
+        CodeZhuyinInputController.userPhrases.flush()
+        SmartInput.stop()
+        exit(0)
     }
 }
