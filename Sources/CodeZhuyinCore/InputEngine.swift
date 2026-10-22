@@ -1000,7 +1000,9 @@ public final class InputEngine {
             composer.clear()
             insertLiteral(text)
         case .tone1:
-            _ = handleCharacter(" ")  // 照原本的空白行為組一聲字
+            // 使用者明確選了一聲中文字：直接組，不走「英文＋注音」拆字
+            cancelNumericRun()
+            if case .composed(let syllable) = composer.press(" ") { insertReading(syllable) }
         }
     }
 
