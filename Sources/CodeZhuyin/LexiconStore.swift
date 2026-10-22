@@ -20,7 +20,10 @@ enum LexiconStore {
                 loaded = Lexicon(dataText: "")
             }
             // 英文偵測：系統內建詞表（公有領域），失敗只是少了自動偵測
-            let detector = try? EnglishDetector(contentsOf: URL(fileURLWithPath: "/usr/share/dict/words"))
+            // 再補上系統詞典沒有的現代與技術用詞（google、github、docker…）
+            let system = (try? String(contentsOf: URL(fileURLWithPath: "/usr/share/dict/words"), encoding: .utf8))?
+                .split(separator: "\n").map(String.init) ?? []
+            let detector: EnglishDetector? = EnglishDetector(words: system + TechWords.list)
             DispatchQueue.main.async {
                 lexicon = loaded
                 englishDetector = detector

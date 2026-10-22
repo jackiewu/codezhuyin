@@ -586,3 +586,16 @@ private func run(_ detector: inout ShiftTapDetector, _ events: [(ShiftTapDetecto
     for key in "150g4" { _ = engine.handle(.character(key)) }  // 150＋ㄕˋ，ㄕ 會蓋掉 ㄓ
     #expect(engine.handle(.enter).commitText == "150 是")
 }
+
+@Test func 詞典沒有google也不會拆成goo() {
+    // 系統詞典只有 goo：舊版拆成 goo＋（gle 被塞進後面的注音）
+    let engine = InputEngine(lexicon: 測試詞庫)
+    engine.englishDetector = EnglishDetector(words: ["goo"])
+    for key in "googlecl3" { _ = engine.handle(.character(key)) }
+    #expect(engine.handle(.enter).commitText == "google 好")
+}
+
+@Test func 技術詞表收了google() {
+    #expect(EnglishDetector(words: TechWords.list).isWord("google"))
+    #expect(TechWords.list.allSatisfy { $0.count >= 3 })
+}

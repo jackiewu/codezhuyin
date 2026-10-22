@@ -705,19 +705,31 @@ public final class InputEngine {
             let isNumber = prefix.first!.isNumber && prefix.last!.isNumber
                 && prefix.allSatisfy { $0.isNumber || ".,".contains($0) }
             // 整串本來查得到（只是有覆寫）時，英文詞要 3 字母以上，避免把改鍵誤判成英文
-            let isWord = englishHintEnabled && cut >= (wholeKnown ? 3 : 2)
-                && prefix.allSatisfy { $0.isLetter || $0.isNumber }
+            let alphanumeric = prefix.allSatisfy { $0.isLetter || $0.isNumber }
+            let isWord = englishHintEnabled && cut >= (wholeKnown ? 3 : 2) && alphanumeric
                 && englishDetector?.isWord(prefix) == true
-            guard isNumber || isWord else { continue }
+            // 詞典沒收的英文（k8s、新產品名）：前段自己就有注音覆寫＝不像注音，也算英文
+            let looksEnglish = englishHintEnabled && cut >= 3 && alphanumeric
+                && prefix.contains(where: \.isLetter) && Self.overwrites(prefix) >= 1
+            guard isNumber || isWord || looksEnglish else { continue }
             var rest = SyllableComposer()
             let tail = chars[cut...]
-            // 中途就組成音節（夾了聲調鍵）＝不是「一個音節」，跳過
+            // 中途就組成音節（夾了聲調鍵）＝不是「一個音節」，跳過。
+            // 後段本身也不能有覆寫：goo＋gle現 這種「後段吃掉英文尾巴」的拆法是錯的
             guard tail.dropLast().allSatisfy({ rest.press($0) == .absorbed }),
+                  rest.overwriteCount == 0,
                   case .composed(let syllable) = rest.press(tail.last!),
                   !lexicon.unigrams(syllable.canonical).isEmpty else { continue }
             return (prefix, syllable)
         }
         return nil
+    }
+
+    /// 這串鍵當注音打會覆寫幾次（打英文的特徵）
+    private static func overwrites(_ keys: String) -> Int {
+        var composer = SyllableComposer()
+        for key in keys { _ = composer.press(key) }
+        return composer.overwriteCount
     }
 
     private func handleInSheet(_ key: KeyInput) -> Output? {
