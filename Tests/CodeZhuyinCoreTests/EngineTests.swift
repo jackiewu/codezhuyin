@@ -77,12 +77,12 @@ private func type(_ engine: InputEngine, _ keys: String) {
     #expect(engine.isIdle)
 }
 
-@Test func 打錯鍵先上屏再放行() {
+@Test func 打錯鍵連同按鍵一起上屏() {
     let engine = makeEngine()
     type(engine, "su3")
     let output = engine.handle(.character("="))
-    #expect(output.handled == false)
-    #expect(output.commitText == "你")
+    #expect(output.handled == true)
+    #expect(output.commitText == "你=")
     #expect(engine.isIdle)
 }
 

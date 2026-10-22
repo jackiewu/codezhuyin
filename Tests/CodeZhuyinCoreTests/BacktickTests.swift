@@ -30,11 +30,11 @@ private func type(_ engine: InputEngine, _ keys: String) {
     #expect(engine.isIdle)
 }
 
-@Test func 中文後面接反引號_先上屏中文再放行() {
+@Test func 中文後面接反引號_中文與反引號一起上屏() {
     let engine = InputEngine(lexicon: 測試詞庫)
     type(engine, "su3cl3")  // 你好
     let output = engine.handle(.character("`"))
-    #expect(output == InputEngine.Output(handled: false, commitText: "你好"))
+    #expect(output == InputEngine.Output(handled: true, commitText: "你好`"))
     #expect(engine.isIdle)
 }
 
@@ -44,7 +44,7 @@ private func type(_ engine: InputEngine, _ keys: String) {
     #expect(engine.handle(.character("`")) == .ignored)
     type(engine, "foo")  // 被組字器吃成注音，但還沒成音節
     let output = engine.handle(.character("`"))
-    #expect(output == InputEngine.Output(handled: false, commitText: "foo"))
+    #expect(output == InputEngine.Output(handled: true, commitText: "foo`"))
     #expect(engine.isIdle)
 }
 
@@ -54,7 +54,7 @@ private func type(_ engine: InputEngine, _ keys: String) {
     type(engine, "su3")  // 你
     type(engine, "ls")   // 組字中：ㄠ→ㄋ（被當注音）
     let output = engine.handle(.character("`"))
-    #expect(output == InputEngine.Output(handled: false, commitText: "你ls"))
+    #expect(output == InputEngine.Output(handled: true, commitText: "你ls`"))
 }
 
 @Test func 底線與括號也是半形直出() {
@@ -64,7 +64,7 @@ private func type(_ engine: InputEngine, _ keys: String) {
         #expect(engine.handle(.character(ch)) == .ignored, "空組字區的 \(ch) 要完全放行")
     }
     type(engine, "foo")
-    #expect(engine.handle(.character("_")) == InputEngine.Output(handled: false, commitText: "foo"))
+    #expect(engine.handle(.character("_")) == InputEngine.Output(handled: true, commitText: "foo_"))
 }
 
 @Test func 打開全形標點後反引號仍原樣輸出() {
@@ -113,4 +113,15 @@ private let 指令詞典 = EnglishDetector(words: ["brew", "install", "llama", "
     _ = engine.handle(.character(";"))
     _ = engine.handle(.tab)
     #expect(engine.handle(.enter).commitText == ";")
+}
+
+@Test func 兩個字母的英文後接冒號() {
+    // db: zcgpay → 舊版 db 顯示成 ㄖ，冒號按了沒反應
+    let engine = InputEngine(lexicon: 測試詞庫)
+    engine.autoSpacing = false
+    type(engine, "db")
+    #expect(engine.englishHint == "db")
+    #expect(engine.preedit().text == "db")
+    #expect(engine.handle(.character(":")) == InputEngine.Output(handled: true, commitText: "db:"))
+    #expect(engine.isIdle)
 }

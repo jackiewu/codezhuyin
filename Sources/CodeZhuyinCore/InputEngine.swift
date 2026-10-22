@@ -216,10 +216,11 @@ public final class InputEngine {
         guard englishHintEnabled else { return nil }
         let raw = composer.rawKeys
         // 允許字母數字混合（1mm、3D、v2），但至少要有一個字母——純數字歸 numberHint
-        guard raw.count >= 3, raw.allSatisfy({ $0.isLetter || $0.isNumber }),
+        guard raw.count >= 2, raw.allSatisfy({ $0.isLetter || $0.isNumber }),
               raw.contains(where: \.isLetter) else { return nil }
-        if let detector = englishDetector, detector.isWord(raw) { return raw }
-        // 注音槽位被覆寫＝打字途中改鍵，多半不是在打注音
+        if raw.count >= 3, let detector = englishDetector, detector.isWord(raw) { return raw }
+        // 注音槽位被覆寫＝打字途中改鍵，多半不是在打注音。
+        // 兩個字母也算（db、ip、js 都是兩個聲母互相覆寫，注音不可能這樣打）
         if composer.overwriteCount >= 1 { return raw }
         return nil
     }
@@ -699,7 +700,9 @@ public final class InputEngine {
             insertLiteral(raw)
         }
         if elements.isEmpty { return .ignored }
-        return Output(handled: false, commitText: flush())
+        // 標點自己跟著一起送出，不交還給 app：有些 app 在同一個按鍵裡先收到上屏文字、
+        // 再收到原按鍵時會把按鍵丟掉（db 後面的 : 沒反應）
+        return Output(handled: true, commitText: (flush() ?? "") + String(ch))
     }
 
     /// 打完英文或數字沒按 Tab 就接著打注音：鍵全混進同一個音節（push＋上＝ㄕㄧㄤˋ、150＋個＝ㄍㄜˋ，
