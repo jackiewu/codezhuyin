@@ -164,8 +164,10 @@ private func engineWithHabits() -> (InputEngine, UserPhraseStore) {
 @Test func 聯想詞不擋打字() {
     let (engine, _) = engineWithHabits()
     type(engine, "su3cl3")
-    _ = engine.handle(.character("!"))  // Shift+1 照常是全形驚嘆號
-    #expect(engine.preedit().text == "你好！")
+    // Shift+1 照常半形：先上屏「你好」再把 ! 交給 app（碼注音預設半形標點）
+    #expect(engine.handle(.character("!")) == InputEngine.Output(handled: false, commitText: "你好"))
+    #expect(engine.isIdle)
+    type(engine, "su3cl3")
     _ = engine.handle(.escape)  // Esc 照常清組字區
     #expect(engine.isIdle)
 
