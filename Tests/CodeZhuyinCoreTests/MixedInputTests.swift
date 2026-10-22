@@ -240,6 +240,7 @@ private func run(_ detector: inout ShiftTapDetector, _ events: [(ShiftTapDetecto
 
 @Test func 空白開中英並列選字_數字直選大小寫() {
     let engine = InputEngine(lexicon: 測試詞庫)
+    engine.spaceCommitsEnglish = false  // 舊行為：空白開中英並列
     engine.englishDetector = 偵測器
     for key in "google" { _ = engine.handle(.character(key)) }
     _ = engine.handle(.space)  // 不組一聲字，改開並列選字
@@ -251,6 +252,7 @@ private func run(_ detector: inout ShiftTapDetector, _ events: [(ShiftTapDetecto
 
 @Test func 並列選字也能選一聲中文字() {
     let engine = InputEngine(lexicon: 測試詞庫)
+    engine.spaceCommitsEnglish = false  // 舊行為：空白開中英並列
     engine.englishDetector = 偵測器
     for key in "google" { _ = engine.handle(.character(key)) }  // 組字中恰為 ㄍㄠ
     _ = engine.handle(.space)
@@ -260,6 +262,7 @@ private func run(_ detector: inout ShiftTapDetector, _ events: [(ShiftTapDetecto
 
 @Test func 並列選字Esc關窗保留注音續打() {
     let engine = InputEngine(lexicon: 測試詞庫)
+    engine.spaceCommitsEnglish = false  // 舊行為：空白開中英並列
     engine.englishDetector = 偵測器
     for key in "google" { _ = engine.handle(.character(key)) }
     _ = engine.handle(.space)
@@ -475,6 +478,7 @@ private func run(_ detector: inout ShiftTapDetector, _ events: [(ShiftTapDetecto
 
 @Test func 中英並列窗退格刪字且窗不關() {
     let engine = InputEngine(lexicon: 測試詞庫)
+    engine.spaceCommitsEnglish = false  // 舊行為：空白開中英並列
     engine.englishDetector = 偵測器
     for key in "hello" { _ = engine.handle(.character(key)) }
     _ = engine.handle(.space)  // 開中英並列

@@ -426,6 +426,7 @@ class CodeZhuyinInputController: IMKInputController {
             engine.englishHintEnabled = defaults.bool(forKey: SettingKey.englishHint)
             engine.fullWidthPunctuation = defaults.bool(forKey: SettingKey.fullWidthPunctuation)
             engine.backtickOpensSymbolSheet = defaults.bool(forKey: SettingKey.backtickSymbolSheet)
+            engine.spaceCommitsEnglish = defaults.bool(forKey: SettingKey.spaceCommitsEnglish)
             engine.outputTransform = defaults.bool(forKey: SettingKey.simplifiedOutput) ? Self.toSimplified : nil
             engine.autoSpacing = defaults.bool(forKey: SettingKey.autoSpacing)
             engine.pageSize = defaults.integer(forKey: SettingKey.pageSize)

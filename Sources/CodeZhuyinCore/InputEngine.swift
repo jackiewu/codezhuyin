@@ -118,6 +118,8 @@ public final class InputEngine {
 
     /// 全形標點開關（偏好設定）。碼注音預設關：工程師要的是鍵盤上的半形 ASCII 標點
     public var fullWidthPunctuation = false
+    /// 偵測到英文時空白＝英文＋空格、. , / ; - 照英文打（偏好設定）。關掉＝空白開中英並列選字
+    public var spaceCommitsEnglish = true
     /// 反引號開符號表（偏好設定）。碼注音預設關：` 一律原樣輸出（Markdown、行內程式碼）
     public var backtickOpensSymbolSheet = false
     /// 輸出轉換（偏好設定「輸出簡體中文」）：組字區、候選窗、上屏文字都套用。
@@ -265,8 +267,13 @@ public final class InputEngine {
         case .space:
             if isInLiteralRun { return handleLiteralRunKey(" ") }
             if !composer.isEmpty {
-                // 偵測到英文：空白改開中英並列選字，不硬組一聲字
-                if englishHint != nil { openBilingualSheet(); return .consumed }
+                // 偵測到英文：預設空白＝英文加一個空格（brew install …），
+                // 關掉 spaceCommitsEnglish 才改開中英並列選字（↓ 永遠可以開）
+                if let hint = englishHint {
+                    if spaceCommitsEnglish { return acceptEnglish(hint, then: " ") }
+                    openBilingualSheet()
+                    return .consumed
+                }
                 // 數字串且標一聲也組不出字（ㄅ、ㄉ 單獨不是字）：空白＝直接出數字。
                 // 組得出字的維持注音優先（18＋空白還是「八」，要 18 用 Tab）。
                 if numberHint != nil, !tone1FormsKnownReading() {
@@ -603,6 +610,10 @@ public final class InputEngine {
     }
 
     private func handleCharacter(_ ch: Character) -> Output {
+        // 英文字後面的 . , / ; -（同時是注音鍵 ㄡㄝㄥㄤㄦ）：照英文打（llama.cpp、a/b）
+        if spaceCommitsEnglish, ".,/;-".contains(ch), let hint = englishHint {
+            return acceptEnglish(hint, then: String(ch))
+        }
         let composerWasEmpty = composer.isEmpty
         let keysBefore = composer.rawKeys
         let overwritten = composer.overwriteCount > 0
@@ -649,6 +660,15 @@ public final class InputEngine {
             // 組字區有內容時打到非注音鍵：先上屏，再讓按鍵原樣送給應用程式
             return Output(handled: false, commitText: flush())
         }
+    }
+
+    /// 把組字中的英文原樣放進組字區，後面接著這個鍵（空白或標點），之後照常組字
+    private func acceptEnglish(_ hint: String, then text: String) -> Output {
+        composer.clear()
+        cancelNumericRun()
+        insertLiteral(hint)
+        insertLiteral(text)
+        return .consumed
     }
 
     /// 半形標點直出（碼注音的核心規則）：` _ ( ) [ ] = 這類非注音鍵出現時，

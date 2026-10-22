@@ -80,3 +80,29 @@ private func type(_ engine: InputEngine, _ keys: String) {
     type(engine, "pm`")
     #expect(engine.preedit().text.hasSuffix("Npm`"))
 }
+
+// MARK: - 打指令：英文後的空白與 .
+
+private let 指令詞典 = EnglishDetector(words: ["brew", "install", "llama", "google"])
+
+@Test func 英文後空白直接出英文加空格() {
+    let engine = InputEngine(lexicon: 測試詞庫)
+    engine.englishDetector = 指令詞典
+    type(engine, "brew install ")
+    #expect(engine.sheetView() == nil)
+    #expect(engine.preedit().text == "brew install ")
+}
+
+@Test func 英文後的點照英文打() {
+    let engine = InputEngine(lexicon: 測試詞庫)
+    engine.englishDetector = 指令詞典
+    type(engine, "brew install llama.cpp")
+    #expect(engine.handle(.enter).commitText == "brew install llama.cpp")
+}
+
+@Test func 英文空白後接中文照常組字() {
+    let engine = InputEngine(lexicon: 測試詞庫)
+    engine.englishDetector = 指令詞典
+    type(engine, "google su3")
+    #expect(engine.handle(.enter).commitText == "google 你")
+}

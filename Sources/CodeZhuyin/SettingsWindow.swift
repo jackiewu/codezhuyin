@@ -8,6 +8,7 @@ enum SettingKey {
     static let fullWidthPunctuation = "fullWidthPunctuation"
     static let backtickSymbolSheet = "backtickSymbolSheet"
     static let simplifiedOutput = "simplifiedOutput"
+    static let spaceCommitsEnglish = "spaceCommitsEnglish"
     static let autoSpacing = "autoSpacing"
     static let pageSize = "pageSize"
     static let fuzzyReading = "fuzzyReading"
@@ -24,6 +25,7 @@ enum SettingKey {
             fullWidthPunctuation: false,
             backtickSymbolSheet: false,
             simplifiedOutput: false,
+            spaceCommitsEnglish: true,
             autoSpacing: true,
             pageSize: 9,
             fuzzyReading: false,
@@ -42,6 +44,7 @@ private struct SettingsView: View {
     @AppStorage(SettingKey.fullWidthPunctuation) private var fullWidthPunctuation = false
     @AppStorage(SettingKey.backtickSymbolSheet) private var backtickSymbolSheet = false
     @AppStorage(SettingKey.simplifiedOutput) private var simplifiedOutput = false
+    @AppStorage(SettingKey.spaceCommitsEnglish) private var spaceCommitsEnglish = true
     @AppStorage(SettingKey.autoSpacing) private var autoSpacing = true
     @AppStorage(SettingKey.pageSize) private var pageSize = 9
     @AppStorage(SettingKey.fuzzyReading) private var fuzzyReading = false
@@ -78,6 +81,12 @@ private struct SettingsView: View {
                 Toggle("Shift 單擊切換中／英", isOn: $shiftToggle)
                 Toggle("中英自動偵測（中打英 Tab 上字；英打注音自動切回）", isOn: $englishHint)
                 Toggle("中英之間自動加空白（我愛 mac）", isOn: $autoSpacing)
+                Toggle(isOn: $spaceCommitsEnglish) {
+                    Text(verbatim: "英文後按空白＝英文加空格，. , / ; - 照英文打（brew install llama.cpp）")
+                }
+                Text(verbatim: "關閉時空白改開中英並列選字。開啟時要並列選字按 ↓。")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
                 Text("Shift＋字母永遠直接輸出英文字母。")
                     .font(.callout)
                     .foregroundStyle(.secondary)
