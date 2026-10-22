@@ -125,3 +125,17 @@ private let 指令詞典 = EnglishDetector(words: ["brew", "install", "llama", "
     #expect(engine.handle(.character(":")) == InputEngine.Output(handled: true, commitText: "db:"))
     #expect(engine.isIdle)
 }
+
+@Test func 組不出字的注音遇到點就當英文() {
+    // 網址 jy.origin：j y . ＝ ㄗㄨㄡ，任何聲調都沒有這個音 → 前面是英文，. 照打，後面接續英文
+    let engine = InputEngine(lexicon: 測試詞庫)
+    type(engine, "jy.ori")
+    #expect(engine.preedit().text == "jy.ori")
+    #expect(engine.handle(.enter).commitText == "jy.ori")
+}
+
+@Test func 組得出字的注音照常吃點() {
+    let engine = InputEngine(lexicon: 測試詞庫)
+    type(engine, "ru,4")  // ㄐㄧㄝˋ 界
+    #expect(engine.preedit().text == "界")
+}

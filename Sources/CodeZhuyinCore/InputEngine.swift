@@ -640,6 +640,18 @@ public final class InputEngine {
         if spaceCommitsEnglish, ".,/;-".contains(ch), let hint = englishHint {
             return acceptEnglish(hint, then: String(ch))
         }
+        // 加上這個鍵就組不出任何字（jy. ＝ ㄗㄨㄡ，任何聲調都不存在）：前面是英文，. 照打。
+        // 之後進英文接續段，網址、路徑（jy.origin/api）一路照打；打回注音會自動切回中文
+        if spaceCommitsEnglish, englishHintEnabled, ".,/;-".contains(ch), !composer.isEmpty,
+           composer.rawKeys.contains(where: \.isLetter),
+           composer.rawKeys.allSatisfy({ $0.isLetter || $0.isNumber }) {
+            var probe = composer
+            if probe.press(ch) == .absorbed, !syllableExists(probe.syllable) {
+                let output = acceptEnglish(composer.rawKeys, then: String(ch))
+                isInLiteralRun = true
+                return output
+            }
+        }
         let composerWasEmpty = composer.isEmpty
         let keysBefore = composer.rawKeys
         let overwritten = composer.overwriteCount > 0
@@ -762,6 +774,15 @@ public final class InputEngine {
             return (prefix, syllable)
         }
         return nil
+    }
+
+    /// 這個（還沒標調的）音節配上任何聲調，詞庫裡查得到嗎
+    private func syllableExists(_ syllable: Syllable) -> Bool {
+        Syllable.Tone.allCases.contains { tone in
+            var probe = syllable
+            probe.tone = tone
+            return !lexicon.unigrams(probe.canonical).isEmpty
+        }
     }
 
     /// 這串鍵當注音打會覆寫幾次（打英文的特徵）
