@@ -1,4 +1,4 @@
-// 產生選單列模板圖示：圓角方塊挖空「融」字（模板圖，僅 alpha 有意義）
+// 產生選單列模板圖示：圓角方塊挖空「碼」字（模板圖，僅 alpha 有意義）
 // 用法：swift scripts/make-icon.swift Resources/CodeZhuyin.tiff
 import AppKit
 
@@ -21,7 +21,7 @@ func render(pixels: Int) -> NSBitmapImageRep {
     guard let cg = NSGraphicsContext.current?.cgContext else { fatalError("無繪圖 context") }
     cg.setBlendMode(.destinationOut) // 挖空
     let font = NSFont(name: "PingFang TC", size: 11) ?? NSFont.systemFont(ofSize: 11, weight: .medium)
-    let str = NSAttributedString(string: "融", attributes: [.font: font, .foregroundColor: NSColor.white])
+    let str = NSAttributedString(string: "碼", attributes: [.font: font, .foregroundColor: NSColor.white])
     let size = str.size()
     str.draw(at: NSPoint(x: (16 - size.width) / 2, y: (16 - size.height) / 2))
     cg.setBlendMode(.normal)
