@@ -177,3 +177,12 @@ private func type(_ engine: InputEngine, _ keys: String) {
     #expect(engine.sheetView() == nil)
     #expect(engine.preedit().text == "是界")  // 拆開後「是」自己重走
 }
+
+@Test func 關掉插入記號時改用游標位置() {
+    let engine = makeEngine()
+    engine.caretMarkEnabled = false
+    type(engine, "su3cl3")
+    _ = engine.handle(.arrowLeft)
+    #expect(engine.preedit().text == "你好")   // 不畫 ‸
+    #expect(engine.preedit().caretUTF16 == 1)  // app 的游標停在 你|好
+}

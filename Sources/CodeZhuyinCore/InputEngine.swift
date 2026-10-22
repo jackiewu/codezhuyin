@@ -173,6 +173,8 @@ public final class InputEngine {
     /// 插入位置記號：組字中的游標不在句尾時顯示，讓使用者看得見會插在哪兩個字中間。
     /// macOS 不保證 app 會在組字文字裡畫游標，所以自己畫一個（純顯示，不會被送出）。
     public static let caretMark = "‸"
+    /// 句中插入點畫 ‸ 記號；關掉時由 app 自己的游標表示（殼層把選取範圍設成零長度）
+    public var caretMarkEnabled = true
 
     /// 數字（1.62）或「數字＋單位」（1mm、0.4mm、5V）——Tab 直接輸出原樣。
     /// 後面接的字母必須是已知單位才算，否則多半是在打注音
@@ -411,7 +413,7 @@ public final class InputEngine {
 
         // 游標在句中時畫出插入記號；句尾不畫（app 自己的游標就在那，畫了反而多餘），
         // 正在打注音時也不畫（注音本身就長在游標處，位置一目了然）
-        let showCaretMark = composer.isEmpty && cursor < elements.count
+        let showCaretMark = caretMarkEnabled && composer.isEmpty && cursor < elements.count
         var caretMarkOffset: Int?
 
         for index in 0..<elements.count {

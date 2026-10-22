@@ -434,6 +434,7 @@ class CodeZhuyinInputController: IMKInputController {
             engine.backtickOpensSymbolSheet = defaults.bool(forKey: SettingKey.backtickSymbolSheet)
             engine.spaceCommitsEnglish = defaults.bool(forKey: SettingKey.spaceCommitsEnglish)
             engine.horizontalCandidates = defaults.bool(forKey: SettingKey.horizontalCandidates)
+            engine.caretMarkEnabled = defaults.bool(forKey: SettingKey.caretMark)
             engine.outputTransform = defaults.bool(forKey: SettingKey.simplifiedOutput) ? Self.toSimplified : nil
             engine.autoSpacing = defaults.bool(forKey: SettingKey.autoSpacing)
             engine.pageSize = defaults.integer(forKey: SettingKey.pageSize)
@@ -568,12 +569,14 @@ class CodeZhuyinInputController: IMKInputController {
             attributed.append(NSAttributedString(string: piece.text, attributes: attrs))
             location += piece.text.utf16.count
         }
+        // 預設：選取範圍零長度，app 會在插入點畫自己的游標（今|天）；所在的字已用粗底線標出。
+        // 開了 ‸ 記號就沿用舊做法，以反白呈現（零長度游標在少數 app 看不出來）
+        let selection = UserDefaults.standard.bool(forKey: SettingKey.caretMark)
+            ? preedit.activeRangeUTF16.map { NSRange(location: $0.start, length: $0.length) }
+            : nil
         client.setMarkedText(
             attributed,
-            // 有活動詞就以反白呈現（零長度游標在很多 app 看不出來）
-            selectionRange: preedit.activeRangeUTF16
-                .map { NSRange(location: $0.start, length: $0.length) }
-                ?? NSRange(location: preedit.caretUTF16, length: 0),
+            selectionRange: selection ?? NSRange(location: preedit.caretUTF16, length: 0),
             replacementRange: documentRange ?? kNoRange
         )
     }

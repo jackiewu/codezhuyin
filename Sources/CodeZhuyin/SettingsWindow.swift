@@ -10,6 +10,7 @@ enum SettingKey {
     static let simplifiedOutput = "simplifiedOutput"
     static let spaceCommitsEnglish = "spaceCommitsEnglish"
     static let horizontalCandidates = "horizontalCandidates"
+    static let caretMark = "caretMark"  // 句中插入點用 ‸ 記號（關＝用 app 的游標）
     static let autoSpacing = "autoSpacing"
     static let pageSize = "pageSize"
     static let fuzzyReading = "fuzzyReading"
@@ -28,6 +29,7 @@ enum SettingKey {
             simplifiedOutput: false,
             spaceCommitsEnglish: true,
             horizontalCandidates: false,
+            caretMark: false,
             autoSpacing: true,
             pageSize: 9,
             fuzzyReading: false,
@@ -319,6 +321,7 @@ private struct SettingsView: View {
     @AppStorage(SettingKey.simplifiedOutput) private var simplifiedOutput = false
     @AppStorage(SettingKey.spaceCommitsEnglish) private var spaceCommitsEnglish = true
     @AppStorage(SettingKey.horizontalCandidates) private var horizontalCandidates = false
+    @AppStorage(SettingKey.caretMark) private var caretMark = false
     @AppStorage(SettingKey.autoSpacing) private var autoSpacing = true
     @AppStorage(SettingKey.pageSize) private var pageSize = 9
     @AppStorage(SettingKey.fuzzyReading) private var fuzzyReading = false
@@ -525,6 +528,11 @@ private struct SettingsView: View {
             PageHeader(title: "選字窗", subtitle: "空白或 ↓ 打開，數字鍵直接選。")
             Card {
                 ToggleRow(title: "橫式選字窗", detail: "候選字排成一列：←→ 選字、↑↓ 翻頁。關掉是直式清單。", isOn: $horizontalCandidates)
+                ToggleRow(
+                    title: "用 ‸ 標示插入點",
+                    detail: "←→ 回頭改字時，預設用 app 本身的游標標示位置；少數 app 看不到游標時再打開這個。",
+                    isOn: $caretMark
+                )
                 Row(title: "每頁字數", detail: "一頁顯示幾個候選字。", showDivider: false) {
                     Picker("", selection: $pageSize) {
                         Text("7").tag(7)
