@@ -55,6 +55,12 @@ class CodeZhuyinInputController: IMKInputController {
 
     override func menu() -> NSMenu! {
         let menu = NSMenu()
+        let version = NSMenuItem(
+            title: "碼注音 v\(Updater.currentVersion)（\(Updater.currentCommit.prefix(7))）",
+            action: nil, keyEquivalent: ""
+        )
+        version.isEnabled = false
+        menu.addItem(version)
         let mode = NSMenuItem(
             title: "目前模式：\(Self.chineseMode ? "中文" : "英文")（Shift 切換）",
             action: nil, keyEquivalent: ""
