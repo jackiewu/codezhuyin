@@ -617,3 +617,18 @@ private func run(_ detector: inout ShiftTapDetector, _ events: [(ShiftTapDetecto
     #expect(engine.preedit().text.hasPrefix("hello"))
     #expect(engine.sheetView() == nil)
 }
+
+@Test func 像注音的兩字母英文只提示不搶空白() {
+    // ui＝ㄧㄛ：提示窗列出 ui，Tab 選英文；空白照常是中文
+    let engine = InputEngine(lexicon: 測試詞庫)
+    for key in "ui" { _ = engine.handle(.character(key)) }
+    #expect(engine.englishHint == nil)
+    #expect(engine.englishHintView()?.items.first?.value == "ui")
+    _ = engine.handle(.tab)
+    #expect(engine.handle(.enter).commitText == "ui")
+
+    let other = InputEngine(lexicon: 測試詞庫)
+    for key in "ui" { _ = other.handle(.character(key)) }
+    _ = other.handle(.arrowDown)  // ↓ 開中英並列
+    #expect(other.sheetView()?.items.prefix(2).map(\.value) == ["ui", "Ui"])
+}

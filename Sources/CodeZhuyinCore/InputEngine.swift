@@ -225,6 +225,16 @@ public final class InputEngine {
         return nil
     }
 
+    /// 提示用的英文：englishHint 之外，再加上「像注音的兩字母英文」（ui、go）。
+    /// 只用在提示窗、Tab、↓；空白與標點仍只認 englishHint，所以照打中文不受影響
+    public var englishSuggestion: String? {
+        if let hint = englishHint { return hint }
+        guard englishHintEnabled else { return nil }
+        let raw = composer.rawKeys
+        guard raw.count == 2, raw.allSatisfy(\.isLetter), TechWords.twoLetter.contains(raw.lowercased()) else { return nil }
+        return raw
+    }
+
     /// 組字中的顯示：偵測到英文就顯示原始字母——打 google 看到 google，
     /// 而不是被覆寫剩下的「ㄍㄠ」；Enter 送出的也是這個
     private var composingText: String { englishHint ?? composer.display }
@@ -331,7 +341,7 @@ public final class InputEngine {
         case .arrowDown:
             isInLiteralRun = false
             if !composer.isEmpty {
-                if englishHint != nil { openBilingualSheet() }  // 組字中只開中英並列
+                if englishSuggestion != nil { openBilingualSheet() }  // 組字中只開中英並列
                 return elements.isEmpty && englishHint == nil ? .ignored : .consumed
             }
             guard !elements.isEmpty else { return .ignored }
@@ -523,7 +533,7 @@ public final class InputEngine {
     public func englishHintView() -> SheetView? {
         guard sheet == nil, bilingual == nil else { return nil }
         let numeric = numericRaw.count >= 2 ? numberHint : nil
-        guard let hint = numeric ?? englishHint else { return nil }
+        guard let hint = numeric ?? englishSuggestion else { return nil }
         let current = preedit()
         // 英文提示只跨組字中的注音；數字提示還要往回涵蓋這串期間已組出的字
         var width = composingText.utf16.count
@@ -847,7 +857,7 @@ public final class InputEngine {
     /// 提示列（聯想詞、AI 補句）可以出現的時機：其他視窗或提示開著時讓路，
     /// 游標回頭改字時不提示
     private var suggestionsAllowed: Bool {
-        sheet == nil && bilingual == nil && !isInLiteralRun && englishHint == nil && numberHint == nil
+        sheet == nil && bilingual == nil && !isInLiteralRun && englishSuggestion == nil && numberHint == nil
             && cursor == elements.count && !elements.isEmpty
     }
 
@@ -959,7 +969,7 @@ public final class InputEngine {
     // MARK: - 中英並列選字
 
     private func openBilingualSheet() {
-        guard let raw = englishHint else { return }
+        guard let raw = englishSuggestion else { return }
         var choices: [BilingualChoice] = []
         var seen = Set<String>()
         for variant in [raw, raw.prefix(1).uppercased() + raw.dropFirst(), raw.uppercased()]

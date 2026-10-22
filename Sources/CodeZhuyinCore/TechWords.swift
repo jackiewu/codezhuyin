@@ -1,6 +1,14 @@
 /// 系統詞典（/usr/share/dict/words，1934 年的 Webster）沒有的現代與技術用詞。
 /// 少了它們，google 會被當成「goo＋注音」拆錯。只放 3 個字母以上的詞（短詞容易撞到注音）。
 public enum TechWords {
+    /// 兩個字母、又剛好是合法注音的常用英文（ui＝ㄧㄛ、go＝ㄕㄟ、ai＝ㄇㄛ）。
+    /// 不能自動當英文（會搶走中文字），只在旁邊提示，Tab 或 ↓ 才選英文
+    public static let twoLetter: Set<String> = [
+        "ui", "ux", "ai", "ml", "go", "js", "ts", "db", "os", "io", "id", "ok", "qa", "pr", "ci", "cd",
+        "vm", "ip", "pm", "hr", "ar", "vr", "pc", "tv", "it", "ad", "bi", "cv", "dm", "ga", "gc", "jp",
+        "kb", "mb", "gb", "tb", "ms", "px", "em", "rx", "tx", "vs", "eq", "ec",
+    ]
+
     public static let list: [String] = [
         // 公司、產品、服務
         "google", "gmail", "youtube", "github", "gitlab", "bitbucket", "facebook", "instagram", "twitter",
