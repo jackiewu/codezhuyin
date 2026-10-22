@@ -48,6 +48,11 @@ class CodeZhuyinInputController: IMKInputController {
         Int(NSEvent.EventTypeMask([.keyDown, .flagsChanged]).rawValue)
     }
 
+    /// 繁轉簡：ICU 的 Hant-Hans 轉換（系統內建，逐字對應，不連網）
+    static let toSimplified: (String) -> String = {
+        $0.applyingTransform(StringTransform("Hant-Hans"), reverse: false) ?? $0
+    }
+
     override func menu() -> NSMenu! {
         let menu = NSMenu()
         let mode = NSMenuItem(
@@ -56,6 +61,10 @@ class CodeZhuyinInputController: IMKInputController {
         )
         mode.isEnabled = false
         menu.addItem(mode)
+        let simplified = NSMenuItem(title: "輸出簡體中文", action: #selector(toggleSimplified(_:)), keyEquivalent: "")
+        simplified.target = self
+        simplified.state = UserDefaults.standard.bool(forKey: SettingKey.simplifiedOutput) ? .on : .off
+        menu.addItem(simplified)
         menu.addItem(.separator())
         for (title, action) in [
             ("操作說明…", #selector(showGuide(_:))),
@@ -67,6 +76,11 @@ class CodeZhuyinInputController: IMKInputController {
             menu.addItem(item)
         }
         return menu
+    }
+
+    @objc private func toggleSimplified(_ sender: Any?) {
+        let defaults = UserDefaults.standard
+        defaults.set(!defaults.bool(forKey: SettingKey.simplifiedOutput), forKey: SettingKey.simplifiedOutput)
     }
 
     @objc private func showGuide(_ sender: Any?) {
@@ -412,6 +426,7 @@ class CodeZhuyinInputController: IMKInputController {
             engine.englishHintEnabled = defaults.bool(forKey: SettingKey.englishHint)
             engine.fullWidthPunctuation = defaults.bool(forKey: SettingKey.fullWidthPunctuation)
             engine.backtickOpensSymbolSheet = defaults.bool(forKey: SettingKey.backtickSymbolSheet)
+            engine.outputTransform = defaults.bool(forKey: SettingKey.simplifiedOutput) ? Self.toSimplified : nil
             engine.autoSpacing = defaults.bool(forKey: SettingKey.autoSpacing)
             engine.pageSize = defaults.integer(forKey: SettingKey.pageSize)
             engine.associationsEnabled = defaults.bool(forKey: SettingKey.associations)

@@ -7,6 +7,7 @@ enum SettingKey {
     static let englishHint = "englishHint"
     static let fullWidthPunctuation = "fullWidthPunctuation"
     static let backtickSymbolSheet = "backtickSymbolSheet"
+    static let simplifiedOutput = "simplifiedOutput"
     static let autoSpacing = "autoSpacing"
     static let pageSize = "pageSize"
     static let fuzzyReading = "fuzzyReading"
@@ -22,6 +23,7 @@ enum SettingKey {
             englishHint: true,
             fullWidthPunctuation: false,
             backtickSymbolSheet: false,
+            simplifiedOutput: false,
             autoSpacing: true,
             pageSize: 9,
             fuzzyReading: false,
@@ -39,6 +41,7 @@ private struct SettingsView: View {
     @AppStorage(SettingKey.englishHint) private var englishHint = true
     @AppStorage(SettingKey.fullWidthPunctuation) private var fullWidthPunctuation = false
     @AppStorage(SettingKey.backtickSymbolSheet) private var backtickSymbolSheet = false
+    @AppStorage(SettingKey.simplifiedOutput) private var simplifiedOutput = false
     @AppStorage(SettingKey.autoSpacing) private var autoSpacing = true
     @AppStorage(SettingKey.pageSize) private var pageSize = 9
     @AppStorage(SettingKey.fuzzyReading) private var fuzzyReading = false
@@ -86,6 +89,7 @@ private struct SettingsView: View {
     private var chineseTab: some View {
         Form {
             Section {
+                Toggle("輸出簡體中文（选字窗与上屏文字都是简体）", isOn: $simplifiedOutput)
                 Toggle("全形標點（，。？！…）", isOn: $fullWidthPunctuation)
                 // verbatim：字串字面量會被當 Markdown，成對的 ` 會變成程式碼樣式而消失
                 Toggle(isOn: $backtickSymbolSheet) { Text(verbatim: "反引號 ` 開符號表（關閉＝` 直接輸出）") }

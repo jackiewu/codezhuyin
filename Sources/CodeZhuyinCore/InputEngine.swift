@@ -120,6 +120,9 @@ public final class InputEngine {
     public var fullWidthPunctuation = false
     /// 反引號開符號表（偏好設定）。碼注音預設關：` 一律原樣輸出（Markdown、行內程式碼）
     public var backtickOpensSymbolSheet = false
+    /// 輸出轉換（偏好設定「輸出簡體中文」）：組字區、候選窗、上屏文字都套用。
+    /// 詞庫、學習資料與 AI 仍用繁體原文。核心不依賴 Foundation，轉換由殼層注入。
+    public var outputTransform: ((String) -> String)?
     /// 中英之間自動加空白開關（偏好設定）：我愛mac → 我愛 mac
     public var autoSpacing = true
     /// 相似音修正開關（偏好設定）：ㄓㄗ、ㄔㄘ、ㄕㄙ、ㄌㄋ、ㄈㄏ、ㄣㄥ、ㄢㄤ 互通
@@ -442,7 +445,7 @@ public final class InputEngine {
                 let value: String
                 switch choice {
                 case .english(let text): value = text
-                case .tone1(let display): value = display
+                case .tone1(let display): value = outputTransform?(display) ?? display
                 }
                 return SheetView.Item(label: "\(offset + 1)", value: value)
             }
@@ -460,7 +463,7 @@ public final class InputEngine {
         let page = sheet.highlighted / pageSize
         let range = (page * pageSize)..<min(sheet.all.count, (page + 1) * pageSize)
         let items = sheet.all[range].enumerated().map { offset, segment in
-            SheetView.Item(label: "\(offset + 1)", value: segment.value)
+            SheetView.Item(label: "\(offset + 1)", value: outputTransform?(segment.value) ?? segment.value)
         }
         let anchorUTF16 = elementTexts()[..<min(sheet.anchor, elements.count)]
             .reduce(0) { $0 + $1.utf16.count }
@@ -478,8 +481,12 @@ public final class InputEngine {
         let shown = visibleAssociations
         let completion = visibleCompletion
         guard !shown.isEmpty || completion != nil else { return nil }
-        var items = shown.enumerated().map { SheetView.Item(label: "\($0.offset + 1)", value: $0.element) }
-        if let completion { items.insert(SheetView.Item(label: "✨→", value: completion), at: 0) }
+        var items = shown.enumerated().map {
+            SheetView.Item(label: "\($0.offset + 1)", value: outputTransform?($0.element) ?? $0.element)
+        }
+        if let completion {
+            items.insert(SheetView.Item(label: "✨→", value: outputTransform?(completion) ?? completion), at: 0)
+        }
         return SheetView(
             items: items,
             highlightedInPage: associationArmed ? (completion == nil ? 0 : 1) : -1, pageIndex: 0, pageCount: 1,
@@ -768,7 +775,7 @@ public final class InputEngine {
     public var correctionTarget: (text: String, readings: [String?])? {
         guard composer.isEmpty, sheet == nil, bilingual == nil, !isInLiteralRun,
               !elements.isEmpty, cursor == elements.count else { return nil }
-        let texts = elementTexts()
+        let texts = elementTexts(converted: false)
         guard texts.allSatisfy({ $0.count == 1 }) else { return nil }
         return (texts.joined(), elements.map(\.readingValue))
     }
@@ -823,7 +830,7 @@ public final class InputEngine {
     /// 要給 AI 接下去的「目前組好的字」：注音打完一個音節、游標在句尾時才有值
     public var completionContext: String? {
         guard composer.isEmpty, suggestionsAllowed else { return nil }
-        return elementTexts().joined()
+        return elementTexts(converted: false).joined()
     }
 
     private func handleArmedAssociations(_ key: KeyInput) -> Output? {
@@ -1099,7 +1106,8 @@ public final class InputEngine {
     }
 
     /// 每個元素對應的顯示文字：詞值一字對一音時逐字分配，否則整段掛在首元素
-    private func elementTexts() -> [String] {
+    /// converted：套用輸出轉換（簡體）。AI 補句／校正要拿詞庫原文（繁體），傳 false
+    private func elementTexts(converted: Bool = true) -> [String] {
         var texts = [String](repeating: "", count: elements.count)
         for segment in walked {
             let chars = Array(segment.value)
@@ -1111,6 +1119,7 @@ public final class InputEngine {
                 texts[segment.start] = segment.value
             }
         }
+        if converted, let outputTransform { texts = texts.map(outputTransform) }
         return spaced(texts)
     }
 
