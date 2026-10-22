@@ -9,7 +9,7 @@ VERSION="${1:-$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' R
 IDENTITY="${CODESIGN_IDENTITY:-$(security find-identity -v -p codesigning | awk -F'"' 'NR==1{print $2}')}"
 [ -n "$IDENTITY" ] || IDENTITY="-"
 
-echo "版本 $VERSION／簽章身分：$IDENTITY"
+echo "版本 ${VERSION}／簽章身分：$IDENTITY"
 CODESIGN_IDENTITY="$IDENTITY" scripts/package-app.sh
 
 STAGE="build/碼注音 CodeZhuyin $VERSION"
@@ -44,7 +44,7 @@ ZIP="build/CodeZhuyin-$VERSION.zip"
 rm -f "$ZIP"
 (cd build && zip -qry "$(basename "$ZIP")" "$(basename "$STAGE")")
 
-echo "完成：$ZIP（$(du -h "$ZIP" | cut -f1)）"
+echo "完成：${ZIP}（$(du -h "$ZIP" | cut -f1)）"
 codesign -dv "$STAGE/CodeZhuyin.app" 2>&1 | grep -E 'Authority|Signature' | head -2 || true
 if [[ "$IDENTITY" == *"Developer ID"* ]]; then
   echo "偵測到 Developer ID —— 可接著公證："
