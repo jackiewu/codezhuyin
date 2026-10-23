@@ -404,6 +404,12 @@ public final class InputEngine {
             let isPinned = pins.contains {
                 $0.start == segment.start && $0.length == segment.length && $0.value == segment.value
             }
+            // 詞把使用者選的字包在裡面（選了「私」，組出「私鑰」）＝使用者確認了這個詞，給它加分；
+            // 否則下次單字「私」的選字加分反而讓「私要」贏過「私鑰」
+            if segment.length > 1, let reading = segment.reading,
+               pins.contains(where: { segment.start <= $0.start && $0.end <= segment.end && $0.length < segment.length }) {
+                store.bump(reading: reading, value: segment.value)
+            }
             if segment.length == 1, segment.reading != nil, isPinned {
                 run.append(segment)
             } else {
@@ -638,7 +644,11 @@ public final class InputEngine {
     private func handleCharacter(_ ch: Character) -> Output {
         // 英文字後面的 . , / ; -（同時是注音鍵 ㄡㄝㄥㄤㄦ）：照英文打（llama.cpp、a/b）
         if spaceCommitsEnglish, ".,/;-".contains(ch), let hint = englishHint {
-            return acceptEnglish(hint, then: String(ch))
+            let output = acceptEnglish(hint, then: String(ch))
+            // 英文後面的 . / -（llama.cpp、src/app、foo-bar）：後面多半還是英數，進英文接續段；
+            // 打回注音（兩個帶聲調的音節）會自動切回中文
+            if "./-".contains(ch) { isInLiteralRun = true }
+            return output
         }
         // 加上這個鍵就組不出任何字（jy. ＝ ㄗㄨㄡ，任何聲調都不存在）：前面是英文，. 照打。
         // 之後進英文接續段，網址、路徑（jy.origin/api）一路照打；打回注音會自動切回中文

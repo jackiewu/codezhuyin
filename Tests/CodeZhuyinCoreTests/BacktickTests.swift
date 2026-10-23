@@ -139,3 +139,12 @@ private let 指令詞典 = EnglishDetector(words: ["brew", "install", "llama", "
     type(engine, "ru,4")  // ㄐㄧㄝˋ 界
     #expect(engine.preedit().text == "界")
 }
+
+@Test func 英文後的點之後接續英文() {
+    // google.com：. 之後的 com 不該再被當注音
+    let engine = InputEngine(lexicon: 測試詞庫)
+    engine.englishDetector = 指令詞典
+    type(engine, "google.com")
+    #expect(engine.preedit().text == "google.com")
+    #expect(engine.handle(.enter).commitText == "google.com")
+}
