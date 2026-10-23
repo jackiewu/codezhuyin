@@ -55,3 +55,21 @@ let 測試詞庫 = Lexicon(dataText: """
     #expect(segments.first?.value == "你好")
     #expect(segments.map(\.value).contains("妳"))
 }
+
+@Test func pin_吻合的詞可以把pin包進去() {
+    // 先選了「私」再打 ㄧㄠˋ：要組出「私鑰」，不是被釘死成「私要」
+    let lexicon = Lexicon(dataText: """
+    # format org.openvanilla.mcbopomofo.sorted
+    ㄙ 思 -7.0
+    ㄙ 私 -9.0
+    ㄧㄠˋ 要 -5.6
+    ㄧㄠˋ 鑰 -11.8
+    ㄙ-ㄧㄠˋ 私鑰 -15.2
+    """)
+    let decoder = SentenceDecoder(lexicon: lexicon)
+    let pin = DecodedSegment(start: 0, length: 1, value: "私", reading: "ㄙ")
+    #expect(decoder.walk([.reading("ㄙ"), .reading("ㄧㄠˋ")], pins: [pin]).map(\.value) == ["私鑰"])
+    // 不吻合的詞仍然不能蓋過 pin
+    let other = DecodedSegment(start: 0, length: 1, value: "思", reading: "ㄙ")
+    #expect(decoder.walk([.reading("ㄙ"), .reading("ㄧㄠˋ")], pins: [other]).map(\.value) == ["思", "要"])
+}

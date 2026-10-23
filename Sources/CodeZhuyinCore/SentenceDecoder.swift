@@ -101,10 +101,18 @@ public struct SentenceDecoder {
 
         var states = [[State]](repeating: [], count: n + 1)
 
+        // 只「跨過」pin 邊界的詞段不能走；把 pin 整個包在裡面、而且那幾個字跟 pin 一樣的詞可以走：
+        // 先選了「私」再打 ㄧㄠˋ，要能組出詞庫裡的「私鑰」，而不是被釘死成「私」＋「要」
         func conflictsWithPin(start: Int, end: Int) -> Bool {
             pins.contains { pin in
-                pin.start < end && start < pin.end && !(pin.start == start && pin.end == end)
+                let overlaps = pin.start < end && start < pin.end
+                let exact = pin.start == start && pin.end == end
+                let inside = start <= pin.start && pin.end <= end
+                return overlaps && !exact && !inside
             }
+        }
+        func containedPins(start: Int, end: Int) -> [DecodedSegment] {
+            pins.filter { start <= $0.start && $0.end <= end && !($0.start == start && $0.end == end) }
         }
 
         for end in 1...n {
@@ -112,7 +120,19 @@ public struct SentenceDecoder {
             for start in earliest..<end {
                 guard start == 0 || !states[start].isEmpty else { continue }
                 guard !conflictsWithPin(start: start, end: end) else { continue }
-                for node in nodes(elements, start: start, end: end, pins: pins) {
+                let inner = containedPins(start: start, end: end)
+                var candidates = nodes(elements, start: start, end: end, pins: pins)
+                if !inner.isEmpty {
+                    // 一個音節一個字才能對位；吻合的詞跟 pin 同等待遇（0 分），同分時仍依詞頻排
+                    candidates = candidates.compactMap { node in
+                        let chars = Array(node.segment.value)
+                        guard chars.count == end - start, inner.allSatisfy({ pin in
+                            String(chars[(pin.start - start)..<(pin.end - start)]) == pin.value
+                        }) else { return nil }
+                        return Node(segment: node.segment, score: node.score * 0.01)
+                    }
+                }
+                for node in candidates {
                     let base = node.score + nodePenalty
                     if start == 0 {
                         states[end].append(State(segment: node.segment, score: base, prevIndex: -1))
