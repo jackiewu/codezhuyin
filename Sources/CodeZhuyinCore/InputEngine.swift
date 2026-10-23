@@ -404,10 +404,10 @@ public final class InputEngine {
             let isPinned = pins.contains {
                 $0.start == segment.start && $0.length == segment.length && $0.value == segment.value
             }
-            // 詞把使用者選的字包在裡面（選了「私」，組出「私鑰」）＝使用者確認了這個詞，給它加分；
+            // 詞以使用者選的字開頭（選了「私」，組出「私鑰」）＝使用者確認了這個詞，給它加分；
             // 否則下次單字「私」的選字加分反而讓「私要」贏過「私鑰」
             if segment.length > 1, let reading = segment.reading,
-               pins.contains(where: { segment.start <= $0.start && $0.end <= segment.end && $0.length < segment.length }) {
+               pins.contains(where: { $0.start == segment.start && $0.length < segment.length }) {
                 store.bump(reading: reading, value: segment.value)
             }
             if segment.length == 1, segment.reading != nil, isPinned {

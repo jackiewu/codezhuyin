@@ -101,18 +101,19 @@ public struct SentenceDecoder {
 
         var states = [[State]](repeating: [], count: n + 1)
 
-        // 只「跨過」pin 邊界的詞段不能走；把 pin 整個包在裡面、而且那幾個字跟 pin 一樣的詞可以走：
-        // 先選了「私」再打 ㄧㄠˋ，要能組出詞庫裡的「私鑰」，而不是被釘死成「私」＋「要」
+        // 只「跨過」pin 邊界的詞段不能走；以 pin 開頭、而且開頭幾個字跟 pin 一樣的詞可以走：
+        // 先選了「私」再打 ㄧㄠˋ，要能組出詞庫裡的「私鑰」，而不是被釘死成「私」＋「要」。
+        // pin 在詞中間或詞尾（世界 → 單選「界」）仍照舊拆開：那是使用者刻意改字
         func conflictsWithPin(start: Int, end: Int) -> Bool {
             pins.contains { pin in
                 let overlaps = pin.start < end && start < pin.end
                 let exact = pin.start == start && pin.end == end
-                let inside = start <= pin.start && pin.end <= end
-                return overlaps && !exact && !inside
+                let leading = start == pin.start && pin.end <= end
+                return overlaps && !exact && !leading
             }
         }
         func containedPins(start: Int, end: Int) -> [DecodedSegment] {
-            pins.filter { start <= $0.start && $0.end <= end && !($0.start == start && $0.end == end) }
+            pins.filter { $0.start == start && $0.end < end }
         }
 
         for end in 1...n {
