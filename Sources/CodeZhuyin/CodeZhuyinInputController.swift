@@ -155,9 +155,11 @@ class CodeZhuyinInputController: IMKInputController {
                 Self.scheduleCatUnlockCheck()
                 return true
             case .swallow:
+                if event.keyCode == UInt16(kVK_Escape) { Log.general.info("貓貓模式：鎖定中按了 Esc（再按一次解鎖）") }
                 Self.scheduleCatUnlockCheck()
                 return true
             case .unlockNow:
+                Log.general.info("貓貓模式：Esc 兩下解鎖")
                 Self.catUnlockWork?.cancel()
                 ModeHUD.shared.hide()
                 return true

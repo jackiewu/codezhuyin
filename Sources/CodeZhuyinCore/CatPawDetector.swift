@@ -2,7 +2,7 @@
 /// 規則：
 /// 1. 一瞬間按下很多個不同的鍵（0.03 秒內 4 個、0.08 秒內 5 個）：人打字再快也做不到
 /// 2. 同一個字母、空白鍵連發超過 2.5 秒（貓坐在鍵盤上）。刪除鍵、方向鍵不算，長按刪字是正常操作
-/// 鎖住後所有按鍵都吞掉；Esc 連按兩下（1 秒內）或停手 5 秒解鎖
+/// 鎖住後所有按鍵都吞掉；Esc 連按兩下（2 秒內）或停手 5 秒解鎖
 public struct CatPawDetector: Sendable {
 
     public enum Action: Equatable, Sendable {
@@ -35,7 +35,7 @@ public struct CatPawDetector: Sendable {
                 return .pass  // 停手夠久，這個鍵是人按的
             }
             guard keyCode == Self.escape, !isRepeat else { return .swallow }
-            if time - lastEscapeAt <= 1.0 {
+            if time - lastEscapeAt <= 2.0 {
                 unlock()
                 return .unlockNow
             }
