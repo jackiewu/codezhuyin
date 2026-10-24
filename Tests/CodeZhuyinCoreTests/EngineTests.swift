@@ -34,7 +34,7 @@ private func type(_ engine: InputEngine, _ keys: String) {
     #expect(sheet != nil)
     #expect(sheet?.items.first?.value == "你好")  // 長詞在前，且目前走法預選
     // 候選順序：你好、好（游標左邊的字可單獨換）、你、妳、擬 → 選第 4 個「妳」
-    #expect(sheet?.items.map(\.value) == ["你好", "好", "你", "妳", "擬"])
+    #expect(sheet?.items.map(\.value) == ["你好", "好", "你", "妳", "擬", "su3cl3"])
     _ = engine.handle(.character("4"))
     #expect(engine.sheetView() == nil)
     #expect(engine.preedit().text == "妳好")
