@@ -328,6 +328,16 @@ private func run(_ detector: inout ShiftTapDetector, _ events: [(ShiftTapDetecto
     #expect(engine.handle(.enter).commitText == "1.62")
 }
 
+@Test func 不可能是注音的數字串直接照打() {
+    // 12 的 ㄉ 會蓋掉 ㄅ、24＝ㄉˋ 查不到：都是數字，不用按 Tab
+    for keys in ["123456", "100", "2026", "24", "1.5"] {
+        let engine = InputEngine(lexicon: 測試詞庫)
+        for key in keys { _ = engine.handle(.character(key)) }
+        #expect(engine.preedit().text == keys, "\(keys) 應直接顯示數字")
+        #expect(engine.handle(.enter).commitText == keys)
+    }
+}
+
 @Test func Enter不搶數字_打才不會變283() {
     // 「打」＝2ㄉ 8ㄚ 3ˇ，整串都是數字鍵。Enter 必須出中文，不能出 283
     let engine = InputEngine(lexicon: 測試詞庫)

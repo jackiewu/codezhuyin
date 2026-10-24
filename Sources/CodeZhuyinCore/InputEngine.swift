@@ -83,6 +83,8 @@ public final class InputEngine {
     /// 進行中的「數字起頭英數串」（1.62、1mm、0.4mm；空字串＝未追蹤）與期間組出的元素數
     private var numericRaw = ""
     private var numericElements = 0
+    /// 這串數字已確定不是注音（12、100、2026）：之後的數字鍵直接當數字，打到字母或其他鍵才結束
+    private var numericLiteral = false
     /// 英文接續段：Shift+字母或長按開啟後，後續按鍵原樣直出（大小寫、數字、
     /// 半形標點、空白），直到 Shift 單擊／Esc／方向鍵／上屏結束
     public private(set) var isInLiteralRun = false
@@ -643,6 +645,24 @@ public final class InputEngine {
     private func cancelNumericRun() {
         numericRaw = ""
         numericElements = 0
+        numericLiteral = false
+    }
+
+    /// 數字串到目前為止只有數字與 . , -（沒有字母單位）
+    private var numericRunIsPureNumber: Bool {
+        numericRaw.count >= 2 && numericRaw.allSatisfy { $0.isNumber || ".,-".contains($0) }
+    }
+
+    /// 數字串改成直接顯示數字：期間組出的注音與組字中的鍵都換回原本的數字，之後的數字鍵照打
+    private func convertNumericRunToLiteral() {
+        let raw = numericRaw
+        composer.clear()
+        for _ in 0..<min(numericElements, cursor) {
+            removeElement(at: cursor - 1)
+        }
+        insertLiteral(raw)
+        numericElements = 1
+        numericLiteral = true
     }
 
     /// 把這串數字期間組出的注音全數退掉，改為直出數字文字
@@ -657,6 +677,16 @@ public final class InputEngine {
     }
 
     private func handleCharacter(_ ch: Character) -> Output {
+        // 已確定在打數字（123456）：數字與小數點、千分位直接照打，不再組注音
+        if numericLiteral {
+            if ch.isNumber || ".,-".contains(ch) {
+                numericRaw.append(ch)
+                insertLiteral(String(ch))
+                numericElements += 1
+                return .consumed
+            }
+            numericLiteral = false  // 字母（4mm 的單位、150是 的注音）照常處理，數字串仍會追蹤
+        }
         // 英文字後面的 . , / ; -（同時是注音鍵 ㄡㄝㄥㄤㄦ）：照英文打（llama.cpp、a/b）
         if spaceCommitsEnglish, ".,/;-".contains(ch), let hint = englishHint {
             // 英文詞後面直接接注音，標點鍵其實是韻母（ux＋都＝ux 2.）：拆出英文，後段繼續組字
@@ -691,6 +721,8 @@ public final class InputEngine {
         switch composer.press(ch) {
         case .absorbed:
             trackNumeric(ch, composerWasEmpty: composerWasEmpty)
+            // 純數字鍵卻覆寫了注音槽位（12＝ㄅ被ㄉ蓋掉、100）：注音不可能這樣打，就是數字
+            if composer.overwriteCount > 0, numericRunIsPureNumber { convertNumericRunToLiteral() }
             return .consumed
         case .composed(let syllable):
             if let (word, rest) = splitLiteralPrefix(keysBefore + String(ch), composed: syllable, overwritten: overwritten) {
@@ -702,6 +734,8 @@ public final class InputEngine {
             trackNumeric(ch, composerWasEmpty: composerWasEmpty)
             if !numericRaw.isEmpty { numericElements += 1 }
             insertReading(syllable, keys: keysBefore + String(ch))
+            // 純數字鍵組出詞庫沒有的音（24＝ㄉˋ）：是數字。組得出字的（283＝打、18＝八）維持中文
+            if numericRunIsPureNumber, lexicon.unigrams(syllable.canonical).isEmpty { convertNumericRunToLiteral() }
             return .consumed
         case .rejected:
             // 3/4/6/7 是聲調鍵，打在空音節上會被拒——那它就是使用者要的數字。
