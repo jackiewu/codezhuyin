@@ -58,6 +58,7 @@ scripts/make-release.sh # 打包可散布的 zip
 
 ## 文件
 
+- [介紹與安裝說明網頁](https://jackiewu.github.io/codezhuyin/)（原始檔 `docs/index.html`）
 - [設計與參考比較](docs/DESIGN.md)
 - [BlendKey 原始說明](docs/upstream-BlendKey-README.md)（完整功能與快捷鍵）
 
