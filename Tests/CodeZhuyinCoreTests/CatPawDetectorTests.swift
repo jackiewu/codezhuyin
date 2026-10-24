@@ -14,7 +14,7 @@ import Testing
 @Test func 一瞬間按下一堆鍵就鎖() {
     var detector = CatPawDetector()
     let actions = (0..<5).map { detector.process(keyCode: UInt16($0), isRepeat: false, at: 1.0 + Double($0) * 0.005) }
-    #expect(actions.last == .lockNow)
+    #expect(actions == [.pass, .pass, .pass, .lockNow, .swallow])  // 0.03 秒內第 4 個鍵就鎖
     #expect(detector.isLocked)
     let r2 = detector.process(keyCode: 9, isRepeat: false, at: 1.5)
     #expect(r2 == .swallow)
