@@ -664,3 +664,32 @@ private let 都的詞庫 = Lexicon(dataText: """
     _ = other.handle(.arrowDown)  // ↓ 開中英並列
     #expect(other.sheetView()?.items.prefix(2).map(\.value) == ["ui", "Ui"])
 }
+
+// MARK: - 組字區顯示原始按鍵（注音標在下方）
+
+@Test func 原始按鍵模式組字區顯示按鍵注音另外給() {
+    let engine = InputEngine(lexicon: 測試詞庫)
+    engine.rawKeysPreedit = true
+    for key in "su" { _ = engine.handle(.character(key)) }
+    #expect(engine.preedit().text == "su")
+    #expect(engine.composingBadge?.text == "ㄋㄧ")
+    #expect(engine.composingBadge?.anchorUTF16 == 0)
+    _ = engine.handle(.character("3"))
+    #expect(engine.preedit().text == "你")
+    #expect(engine.composingBadge == nil)
+}
+
+@Test func 原始按鍵模式標籤起點在已組好的字後面() {
+    let engine = InputEngine(lexicon: 測試詞庫)
+    engine.rawKeysPreedit = true
+    for key in "su3c" { _ = engine.handle(.character(key)) }
+    #expect(engine.preedit().text == "你c")
+    #expect(engine.composingBadge?.anchorUTF16 == 1)
+}
+
+@Test func 關掉原始按鍵模式照舊顯示注音() {
+    let engine = InputEngine(lexicon: 測試詞庫)
+    for key in "su" { _ = engine.handle(.character(key)) }
+    #expect(engine.preedit().text == "ㄋㄧ")
+    #expect(engine.composingBadge == nil)
+}

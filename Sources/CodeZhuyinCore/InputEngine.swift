@@ -239,7 +239,20 @@ public final class InputEngine {
 
     /// 組字中的顯示：偵測到英文就顯示原始字母——打 google 看到 google，
     /// 而不是被覆寫剩下的「ㄍㄠ」；Enter 送出的也是這個
-    private var composingText: String { englishHint ?? composer.display }
+    /// 開著時組字區顯示原始按鍵（打 ui 看到 ui），注音改由 composingBadge 標在旁邊（像華碩）
+    public var rawKeysPreedit = false
+
+    private var composingText: String {
+        if let hint = englishHint { return hint }
+        return rawKeysPreedit ? composer.rawKeys : composer.display
+    }
+
+    /// 原始按鍵模式下，組字中按鍵對應的注音（ui → ㄧㄛ）與它在組字區的起點，給殼層畫小標籤
+    public var composingBadge: (text: String, anchorUTF16: Int)? {
+        guard rawKeysPreedit, !composer.isEmpty, sheet == nil else { return nil }
+        let caret = preedit().caretUTF16
+        return (composer.display, caret - composingText.utf16.count)
+    }
 
     // MARK: - 事件入口
 

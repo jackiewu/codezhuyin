@@ -115,6 +115,7 @@ class CodeZhuyinInputController: IMKInputController {
     override func deactivateServer(_ sender: Any!) {
         commitComposition(sender)
         CandidatePanel.shared.dismiss(owner: self)
+        ZhuyinBadge.shared.hide()
     }
 
     override func commitComposition(_ sender: Any!) {
@@ -449,6 +450,7 @@ class CodeZhuyinInputController: IMKInputController {
             engine.spaceCommitsEnglish = defaults.bool(forKey: SettingKey.spaceCommitsEnglish)
             engine.horizontalCandidates = defaults.bool(forKey: SettingKey.horizontalCandidates)
             engine.caretMarkEnabled = defaults.bool(forKey: SettingKey.caretMark)
+            engine.rawKeysPreedit = defaults.bool(forKey: SettingKey.rawKeysPreedit)
             engine.outputTransform = defaults.bool(forKey: SettingKey.simplifiedOutput) ? Self.toSimplified : nil
             engine.autoSpacing = defaults.bool(forKey: SettingKey.autoSpacing)
             engine.pageSize = defaults.integer(forKey: SettingKey.pageSize)
@@ -486,8 +488,16 @@ class CodeZhuyinInputController: IMKInputController {
                 }
                 self.syncUI(engine, client: client)
             }
+            ZhuyinBadge.shared.hide()
         } else {
             CandidatePanel.shared.dismiss(owner: self)
+            if let badge = engine.composingBadge {
+                var lineRect = NSRect.zero
+                client.attributes(forCharacterIndex: badge.anchorUTF16, lineHeightRectangle: &lineRect)
+                ZhuyinBadge.shared.show(badge.text, near: lineRect)
+            } else {
+                ZhuyinBadge.shared.hide()
+            }
         }
     }
 
