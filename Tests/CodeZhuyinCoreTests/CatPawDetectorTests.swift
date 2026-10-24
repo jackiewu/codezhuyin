@@ -5,7 +5,8 @@ import Testing
     var detector = CatPawDetector()
     // 每 0.06 秒一個鍵（每秒 16 鍵，比打字最快的人還快）
     for (i, key) in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].enumerated() {
-        #expect(detector.process(keyCode: UInt16(key), isRepeat: false, at: Double(i) * 0.06) == .pass)
+        let r1 = detector.process(keyCode: UInt16(key), isRepeat: false, at: Double(i) * 0.06)
+        #expect(r1 == .pass)
     }
     #expect(!detector.isLocked)
 }
@@ -15,7 +16,8 @@ import Testing
     let actions = (0..<5).map { detector.process(keyCode: UInt16($0), isRepeat: false, at: 1.0 + Double($0) * 0.005) }
     #expect(actions.last == .lockNow)
     #expect(detector.isLocked)
-    #expect(detector.process(keyCode: 9, isRepeat: false, at: 1.5) == .swallow)
+    let r2 = detector.process(keyCode: 9, isRepeat: false, at: 1.5)
+    #expect(r2 == .swallow)
 }
 
 @Test func 字母壓著不放就鎖_刪除鍵不算() {
@@ -34,15 +36,20 @@ import Testing
 @Test func Esc連按兩下解鎖() {
     var detector = CatPawDetector()
     for k in 0..<5 { _ = detector.process(keyCode: UInt16(k), isRepeat: false, at: Double(k) * 0.005) }
-    #expect(detector.process(keyCode: 53, isRepeat: false, at: 1.0) == .swallow)
-    #expect(detector.process(keyCode: 53, isRepeat: false, at: 1.4) == .unlockNow)
-    #expect(detector.process(keyCode: 0, isRepeat: false, at: 2.0) == .pass)
+    let r3 = detector.process(keyCode: 53, isRepeat: false, at: 1.0)
+    #expect(r3 == .swallow)
+    let r4 = detector.process(keyCode: 53, isRepeat: false, at: 1.4)
+    #expect(r4 == .unlockNow)
+    let r5 = detector.process(keyCode: 0, isRepeat: false, at: 2.0)
+    #expect(r5 == .pass)
 }
 
 @Test func 停手五秒自動解鎖() {
     var detector = CatPawDetector()
     for k in 0..<5 { _ = detector.process(keyCode: UInt16(k), isRepeat: false, at: Double(k) * 0.005) }
-    #expect(!detector.unlockIfQuiet(at: 3.0))
-    #expect(detector.unlockIfQuiet(at: 5.1))
+    let r6 = detector.unlockIfQuiet(at: 3.0)
+    #expect(!r6)
+    let r7 = detector.unlockIfQuiet(at: 5.1)
+    #expect(r7)
     #expect(!detector.isLocked)
 }
