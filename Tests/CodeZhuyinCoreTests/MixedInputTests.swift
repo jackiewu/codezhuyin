@@ -618,6 +618,29 @@ private func run(_ detector: inout ShiftTapDetector, _ events: [(ShiftTapDetecto
     #expect(engine.handle(.enter).commitText?.filter { $0 != " " } == "ui高")
 }
 
+private let 都的詞庫 = Lexicon(dataText: """
+# format org.openvanilla.mcbopomofo.sorted
+ㄉㄡ 都 -4.0
+ㄉㄜ˙ 的 -3.0
+""")
+
+@Test func 兩字母英文後接韻母是標點鍵的注音() {
+    // 實際：ux2.（ux＋都 的 2. 被當英文加句點）
+    let engine = InputEngine(lexicon: 都的詞庫)
+    engine.englishDetector = 偵測器
+    for key in "ux2." { _ = engine.handle(.character(key)) }
+    _ = engine.handle(.space)
+    #expect(engine.handle(.enter).commitText?.filter { $0 != " " } == "ux都")
+}
+
+@Test func 兩字母英文後接注音整串剛好組得出字也要拆() {
+    // 實際：ai＋的（ai2k7）只剩「的」，ai 被吃掉
+    let engine = InputEngine(lexicon: 都的詞庫)
+    engine.englishDetector = 偵測器
+    for key in "ai2k7" { _ = engine.handle(.character(key)) }
+    #expect(engine.handle(.enter).commitText?.filter { $0 != " " } == "ai的")
+}
+
 @Test func 整串是英文詞時空白照樣是英文加空格() {
     let engine = InputEngine(lexicon: 測試詞庫)
     engine.englishDetector = 偵測器

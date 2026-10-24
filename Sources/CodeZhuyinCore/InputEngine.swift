@@ -646,6 +646,14 @@ public final class InputEngine {
     private func handleCharacter(_ ch: Character) -> Output {
         // 英文字後面的 . , / ; -（同時是注音鍵 ㄡㄝㄥㄤㄦ）：照英文打（llama.cpp、a/b）
         if spaceCommitsEnglish, ".,/;-".contains(ch), let hint = englishHint {
+            // 英文詞後面直接接注音，標點鍵其實是韻母（ux＋都＝ux 2.）：拆出英文，後段繼續組字
+            if let (word, tail) = splitWordBeforePartial(hint + String(ch)) {
+                cancelNumericRun()
+                composer.clear()
+                insertLiteral(word)
+                for key in tail { _ = composer.press(key) }
+                return .consumed
+            }
             let output = acceptEnglish(hint, then: String(ch))
             // 英文後面的 . / -（llama.cpp、src/app、foo-bar）：後面多半還是英數，進英文接續段；
             // 打回注音（兩個帶聲調的音節）會自動切回中文
@@ -759,6 +767,24 @@ public final class InputEngine {
             ?? splitLiteralPrefix(keys, composed: composed, overwritten: overwritten, wordsOnly: false)
     }
 
+    /// 整串不是英文詞，但能拆成「英文詞＋還沒標調的注音」（ux＋2.＝ux＋ㄉㄡ）
+    private func splitWordBeforePartial(_ keys: String) -> (String, String)? {
+        guard englishHintEnabled, englishDetector?.isWord(keys) != true else { return nil }
+        let chars = Array(keys)
+        for cut in stride(from: chars.count - 1, through: 2, by: -1) {
+            let prefix = String(chars[..<cut])
+            guard prefix.allSatisfy({ $0.isLetter || $0.isNumber }), prefix.contains(where: \.isLetter),
+                  englishDetector?.isWord(prefix) == true
+                    || (cut == 2 && TechWords.twoLetter.contains(prefix.lowercased())) else { continue }
+            var rest = SyllableComposer()
+            let tail = chars[cut...]
+            guard tail.allSatisfy({ rest.press($0) == .absorbed }), rest.overwriteCount == 0,
+                  syllableExists(rest.syllable) else { continue }
+            return (prefix, String(tail))
+        }
+        return nil
+    }
+
     /// 空白鍵前檢查：英文提示整串不是詞，但能拆成「詞典英文詞＋一聲音節」
     private func splitsIntoWordAndTone1(_ hint: String) -> Bool {
         guard englishDetector?.isWord(hint) != true else { return false }
@@ -779,8 +805,9 @@ public final class InputEngine {
             // 整串本來查得到（只是有覆寫）時，英文詞要 3 字母以上，避免把改鍵誤判成英文
             let alphanumeric = prefix.allSatisfy { $0.isLetter || $0.isNumber }
             // 兩字母常用英文（ui、ux、db）也算：ui＋跟 連打時整串會覆寫成組不出字的音，拆得開才對
-            let isWord = englishHintEnabled && cut >= (wholeKnown ? 3 : 2) && alphanumeric
-                && (englishDetector?.isWord(prefix) == true
+            // ai＋的（ai2k7）整串覆寫後剛好也是「的」，兩字母詞照樣要拆
+            let isWord = englishHintEnabled && alphanumeric
+                && ((cut >= (wholeKnown ? 3 : 2) && englishDetector?.isWord(prefix) == true)
                     || (cut == 2 && TechWords.twoLetter.contains(prefix.lowercased())))
             // 詞典沒收的英文（k8s、新產品名）：前段自己就有注音覆寫＝不像注音，也算英文
             let looksEnglish = !wordsOnly && englishHintEnabled && cut >= 3 && alphanumeric
