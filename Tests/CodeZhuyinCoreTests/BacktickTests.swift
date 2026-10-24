@@ -148,3 +148,21 @@ private let 指令詞典 = EnglishDetector(words: ["brew", "install", "llama", "
     #expect(engine.preedit().text == "google.com")
     #expect(engine.handle(.enter).commitText == "google.com")
 }
+
+// MARK: - 全形標點模式：英文後面的 : _ 不能被吞掉
+
+@Test func 全形模式英文後的冒號照打() {
+    let engine = InputEngine(lexicon: 測試詞庫)
+    engine.fullWidthPunctuation = true
+    type(engine, "https")
+    #expect(engine.handle(.character(":")) == .consumed)
+    #expect(engine.preedit().text.hasPrefix("https:"))
+}
+
+@Test func 全形模式英文後的底線照打() {
+    let engine = InputEngine(lexicon: 測試詞庫)
+    engine.fullWidthPunctuation = true
+    type(engine, "config")
+    #expect(engine.handle(.character("_")) == .consumed)
+    #expect(engine.preedit().text.hasPrefix("config_"))
+}

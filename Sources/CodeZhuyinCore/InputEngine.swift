@@ -700,7 +700,16 @@ public final class InputEngine {
             if ch == "`" || !fullWidthPunctuation, let output = passThroughCodePunctuation(ch) {
                 return output
             }
-            if !composer.isEmpty { return .consumed }  // 打錯鍵不打斷組字
+            // 全形模式下，打到一半的鍵後面接標點（https: 、config_、db:）：前面當英文、標點用半形，
+            // 後面接續英文。舊版這裡直接吞掉按鍵，: 和 _ 就不見了
+            if !composer.isEmpty {
+                let raw = composer.rawKeys
+                composer.clear()
+                insertLiteral(raw)
+                insertLiteral(String(ch))
+                isInLiteralRun = true
+                return .consumed
+            }
             if fullWidthPunctuation, let punct = Punctuation.fullWidth(ch) {
                 if elements.isEmpty { return Output(handled: true, commitText: punct) }
                 insertLiteral(punct)
