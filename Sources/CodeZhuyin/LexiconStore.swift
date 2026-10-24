@@ -6,11 +6,23 @@ enum LexiconStore {
     private(set) static var lexicon: Lexicon?
     private(set) static var englishDetector: EnglishDetector?
     private static var loading = false
+    private static var systemWords: [String] = []
+
+    /// 情境的英文詞變了：重建英文偵測詞表（背景做，約 0.1 秒）
+    static func refreshEnglish() {
+        guard lexicon != nil else { return }
+        let words = systemWords + TechWords.list + Contexts.store.englishWords
+        DispatchQueue.global(qos: .userInitiated).async {
+            let detector = EnglishDetector(words: words)
+            DispatchQueue.main.async { englishDetector = detector }
+        }
+    }
 
     static func bootstrap() {
         guard lexicon == nil, !loading else { return }
         loading = true
         let url = Bundle.main.url(forResource: "data", withExtension: "txt", subdirectory: "data")
+        let contextEnglish = Contexts.store.englishWords  // 主執行緒先取好，背景只讀複本
         DispatchQueue.global(qos: .userInitiated).async {
             let loaded: Lexicon
             if let url, let lex = try? Lexicon(contentsOf: url) {
@@ -23,9 +35,10 @@ enum LexiconStore {
             // 再補上系統詞典沒有的現代與技術用詞（google、github、docker…）
             let system = (try? String(contentsOf: URL(fileURLWithPath: "/usr/share/dict/words"), encoding: .utf8))?
                 .split(separator: "\n").map(String.init) ?? []
-            let detector: EnglishDetector? = EnglishDetector(words: system + TechWords.list)
+            let detector: EnglishDetector? = EnglishDetector(words: system + TechWords.list + contextEnglish)
             DispatchQueue.main.async {
                 lexicon = loaded
+                systemWords = system
                 englishDetector = detector
                 loading = false
                 Log.general.info("詞庫就緒：\(loaded.entryCount) 條；英文偵測：\(detector == nil ? "無" : "有")")

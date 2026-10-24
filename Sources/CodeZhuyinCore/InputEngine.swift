@@ -151,16 +151,25 @@ public final class InputEngine {
                 decoder.scoreBonus = { [weak store] reading, value in
                     store?.bonus(reading: reading, value: value) ?? 0
                 }
-                decoder.extraUnigrams = { [weak store] reading in
-                    store?.userWords(reading: reading) ?? []
+                decoder.extraUnigrams = { [weak store, weak self] reading in
+                    (store?.userWords(reading: reading) ?? []) + (self?.contextUnigrams?(reading) ?? [])
                 }
                 decoder.transitionBonus = { [weak store] previous, next in
                     store?.transitionBonus(from: previous, to: next) ?? 0
                 }
             } else {
                 decoder.scoreBonus = nil
-                decoder.extraUnigrams = nil
+                decoder.extraUnigrams = { [weak self] reading in self?.contextUnigrams?(reading) ?? [] }
                 decoder.transitionBonus = nil
+            }
+            rewalk()
+        }
+    }
+    /// 情境詞：讀音 → 打開的情境裡的詞（nil＝沒有情境）
+    public var contextUnigrams: ((String) -> [Unigram])? {
+        didSet {
+            if userPhrases == nil {
+                decoder.extraUnigrams = { [weak self] reading in self?.contextUnigrams?(reading) ?? [] }
             }
             rewalk()
         }

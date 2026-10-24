@@ -477,6 +477,7 @@ class CodeZhuyinInputController: IMKInputController {
         if engine == nil, let lexicon = LexiconStore.lexicon {
             let created = InputEngine(lexicon: lexicon)
             created.userPhrases = Self.userPhrases
+            created.contextUnigrams = { Contexts.store.unigrams(reading: $0) }
             engine = created
         }
         // 偏好設定即時生效（每次按鍵讀一次 UserDefaults，成本可忽略）

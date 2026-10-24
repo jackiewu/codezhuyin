@@ -74,7 +74,7 @@ enum Theme {
 // MARK: - 共用元件（卡片式設定列，參考 0c／隨便打 的設定頁）
 
 /// 一張圓角卡片，裡面的列以分隔線隔開
-private struct Card<Content: View>: View {
+struct Card<Content: View>: View {
     @ViewBuilder var content: Content
     var body: some View {
         VStack(alignment: .leading, spacing: 0) { content }
@@ -91,7 +91,7 @@ private struct Card<Content: View>: View {
 }
 
 /// 卡片裡的一列：標題＋說明，右邊放開關或按鈕。indent＝子選項（掛在上一列底下）
-private struct Row<Accessory: View>: View {
+struct Row<Accessory: View>: View {
     let title: String
     var detail: String? = nil
     var indent = false
@@ -127,7 +127,7 @@ private struct Row<Accessory: View>: View {
 }
 
 /// 開關列
-private struct ToggleRow: View {
+struct ToggleRow: View {
     let title: String
     var detail: String? = nil
     var indent = false
@@ -141,7 +141,7 @@ private struct ToggleRow: View {
 }
 
 /// 頁首：大標題＋一句說明
-private struct PageHeader: View {
+struct PageHeader: View {
     let title: String
     let subtitle: String
     var body: some View {
@@ -154,7 +154,7 @@ private struct PageHeader: View {
 }
 
 /// 卡片上方的小節標題
-private struct SectionTitle: View {
+struct SectionTitle: View {
     let text: String
     var note: String? = nil
     var body: some View {
@@ -279,7 +279,7 @@ private struct FlowLayout: Layout {
 // MARK: - 頁面
 
 private enum Page: String, CaseIterable, Identifiable {
-    case overview, mixed, chinese, candidates, voice, smart, learning, update
+    case overview, mixed, chinese, candidates, voice, smart, learning, contexts, update
     var id: String { rawValue }
 
     var title: String {
@@ -291,6 +291,7 @@ private enum Page: String, CaseIterable, Identifiable {
         case .voice: return "語音輸入"
         case .smart: return "智慧輸入"
         case .learning: return "學習資料"
+        case .contexts: return "情境"
         case .update: return "更新"
         }
     }
@@ -304,6 +305,7 @@ private enum Page: String, CaseIterable, Identifiable {
         case .voice: return "mic"
         case .smart: return "sparkles"
         case .learning: return "brain"
+        case .contexts: return "square.stack.3d.up"
         case .update: return "arrow.down.circle"
         }
     }
@@ -312,7 +314,8 @@ private enum Page: String, CaseIterable, Identifiable {
     static let groups: [(String?, [Page])] = [
         (nil, [.overview]),
         ("打字", [.mixed, .chinese, .candidates]),
-        ("進階", [.voice, .smart, .learning]),
+        ("詞庫", [.contexts, .learning]),
+        ("進階", [.voice, .smart]),
         ("系統", [.update]),
     ]
 }
@@ -459,6 +462,7 @@ private struct SettingsView: View {
         case .voice: voicePage
         case .smart: smartPage
         case .learning: learningPage
+        case .contexts: ContextsPage()
         case .update: UpdatePage()
         }
     }
