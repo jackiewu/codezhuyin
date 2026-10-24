@@ -778,8 +778,10 @@ public final class InputEngine {
                 && prefix.allSatisfy { $0.isNumber || ".,".contains($0) }
             // 整串本來查得到（只是有覆寫）時，英文詞要 3 字母以上，避免把改鍵誤判成英文
             let alphanumeric = prefix.allSatisfy { $0.isLetter || $0.isNumber }
+            // 兩字母常用英文（ui、ux、db）也算：ui＋跟 連打時整串會覆寫成組不出字的音，拆得開才對
             let isWord = englishHintEnabled && cut >= (wholeKnown ? 3 : 2) && alphanumeric
-                && englishDetector?.isWord(prefix) == true
+                && (englishDetector?.isWord(prefix) == true
+                    || (cut == 2 && TechWords.twoLetter.contains(prefix.lowercased())))
             // 詞典沒收的英文（k8s、新產品名）：前段自己就有注音覆寫＝不像注音，也算英文
             let looksEnglish = !wordsOnly && englishHintEnabled && cut >= 3 && alphanumeric
                 && prefix.contains(where: \.isLetter) && Self.overwrites(prefix) >= 1

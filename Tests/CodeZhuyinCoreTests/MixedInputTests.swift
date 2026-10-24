@@ -609,6 +609,15 @@ private func run(_ detector: inout ShiftTapDetector, _ events: [(ShiftTapDetecto
     #expect(engine.handle(.enter).commitText == "google 高")
 }
 
+@Test func 兩字母英文後直接打一聲注音會拆開() {
+    // 實際：uiep（ui＋跟 被整串當英文）。ui 是常用兩字母英文，後面 ㄍㄠ 組得出字就拆開
+    let engine = InputEngine(lexicon: 測試詞庫)
+    engine.englishDetector = 偵測器
+    for key in "uiel" { _ = engine.handle(.character(key)) }
+    _ = engine.handle(.space)
+    #expect(engine.handle(.enter).commitText?.filter { $0 != " " } == "ui高")
+}
+
 @Test func 整串是英文詞時空白照樣是英文加空格() {
     let engine = InputEngine(lexicon: 測試詞庫)
     engine.englishDetector = 偵測器
