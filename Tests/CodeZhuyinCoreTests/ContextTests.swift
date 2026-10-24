@@ -28,7 +28,7 @@ private let 情境詞庫 = Lexicon(dataText: """
     store.upsert(pack)
     let engine = InputEngine(lexicon: 情境詞庫)
     engine.contextUnigrams = { store.unigrams(reading: $0) }
-    for key in "n u84" { _ = engine.handle(key == " " ? .space : .character(key)) }  // ㄙ＋一聲、ㄧㄠˋ
+    for key in "n ul4" { _ = engine.handle(key == " " ? .space : .character(key)) }  // ㄙ＋一聲、ㄧㄠˋ
     #expect(engine.preedit().text == "私鑰")
 
     pack.enabled = false
