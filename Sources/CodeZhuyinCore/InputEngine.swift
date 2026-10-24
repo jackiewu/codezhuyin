@@ -62,6 +62,8 @@ public final class InputEngine {
     public var pageSize = 9
 
     private var elements: [Element] = []
+    /// 每個元素當初實際按的鍵（與 elements 等長）：回頭改字時可以還原成英文原鍵（唷 → ui）
+    private var elementKeys: [String] = []
     private var cursor = 0  // 元素邊界位置 0...elements.count
     private var pins: [DecodedSegment] = []
     private var composer = SyllableComposer()
@@ -673,12 +675,12 @@ public final class InputEngine {
             if let (word, rest) = splitLiteralPrefix(keysBefore + String(ch), composed: syllable, overwritten: overwritten) {
                 cancelNumericRun()
                 insertLiteral(word)
-                insertReading(rest)
+                insertReading(rest, keys: String((keysBefore + String(ch)).dropFirst(word.count)))
                 return .consumed
             }
             trackNumeric(ch, composerWasEmpty: composerWasEmpty)
             if !numericRaw.isEmpty { numericElements += 1 }
-            insertReading(syllable)
+            insertReading(syllable, keys: keysBefore + String(ch))
             return .consumed
         case .rejected:
             // 3/4/6/7 是聲調鍵，打在空音節上會被拒——那它就是使用者要的數字。
@@ -1072,7 +1074,8 @@ public final class InputEngine {
         case .tone1:
             // 使用者明確選了一聲中文字：直接組，不走「英文＋注音」拆字
             cancelNumericRun()
-            if case .composed(let syllable) = composer.press(" ") { insertReading(syllable) }
+            let keys = composer.rawKeys + " "
+            if case .composed(let syllable) = composer.press(" ") { insertReading(syllable, keys: keys) }
         }
     }
 
@@ -1103,7 +1106,29 @@ public final class InputEngine {
             }
             all.insert(contentsOf: dates, at: highlighted + 1)
         }
+        // 最後一項：這個詞當初按的鍵，原樣還原成英文（打 ui 空白變成「唷」時，↓ 選 ui）
+        let keys = String(elementKeys[anchor.start..<anchor.end].joined().filter { $0 != " " })
+        if keys.contains(where: { $0.isLetter }), keys != anchor.value, !all.contains(where: { $0.value == keys }) {
+            all.append(DecodedSegment(start: anchor.start, length: anchor.length, value: keys, reading: nil))
+        }
         sheet = Sheet(all: all, anchor: anchor.start, highlighted: highlighted)
+    }
+
+    /// 把一段字換回當初的按鍵（英文原樣）
+    private func restoreKeys(_ segment: DecodedSegment) {
+        sheet = nil
+        pins = pins.compactMap { pin in
+            if pin.end <= segment.start { return pin }
+            if pin.start >= segment.end {
+                return DecodedSegment(start: pin.start - segment.length + 1, length: pin.length,
+                                      value: pin.value, reading: pin.reading)
+            }
+            return nil
+        }
+        elements.replaceSubrange(segment.start..<segment.end, with: [.literal(segment.value)])
+        elementKeys.replaceSubrange(segment.start..<segment.end, with: [segment.value])
+        cursor = segment.start + 1
+        rewalk()
     }
 
     private func openSymbolSheet() {
@@ -1116,7 +1141,7 @@ public final class InputEngine {
     private func choose(_ segment: DecodedSegment, kind: Sheet.Kind) -> Output {
         switch kind {
         case .words:
-            select(segment)
+            if segment.reading == nil, segment.length > 0 { restoreKeys(segment) } else { select(segment) }
         case .symbols:
             sheet = nil
             if elements.isEmpty { return Output(handled: true, commitText: segment.value) }
@@ -1142,15 +1167,15 @@ public final class InputEngine {
 
     // MARK: - 元素操作
 
-    private func insertReading(_ syllable: Syllable) {
-        insert(.reading(syllable.canonical))
+    private func insertReading(_ syllable: Syllable, keys: String) {
+        insert(.reading(syllable.canonical), keys: keys)
     }
 
     private func insertLiteral(_ text: String) {
-        insert(.literal(text))
+        insert(.literal(text), keys: text)
     }
 
-    private func insert(_ element: Element) {
+    private func insert(_ element: Element, keys: String) {
         pins = pins.compactMap { pin in
             if pin.end <= cursor { return pin }
             if pin.start >= cursor {
@@ -1159,6 +1184,7 @@ public final class InputEngine {
             return nil  // 插入點落在 pin 中間：拆掉
         }
         elements.insert(element, at: cursor)
+        elementKeys.insert(keys, at: cursor)
         cursor += 1
         rewalk()
     }
@@ -1172,6 +1198,7 @@ public final class InputEngine {
             return nil  // 覆蓋刪除點的 pin：拆掉
         }
         elements.remove(at: index)
+        elementKeys.remove(at: index)
         cursor -= 1
         rewalk()
     }
@@ -1194,6 +1221,7 @@ public final class InputEngine {
 
     private func reset() {
         elements = []
+        elementKeys = []
         cursor = 0
         pins = []
         walked = []

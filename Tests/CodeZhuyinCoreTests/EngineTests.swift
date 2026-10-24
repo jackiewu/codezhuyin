@@ -186,3 +186,15 @@ private func type(_ engine: InputEngine, _ keys: String) {
     #expect(engine.preedit().text == "你好")   // 不畫 ‸
     #expect(engine.preedit().caretUTF16 == 1)  // app 的游標停在 你|好
 }
+
+@Test func 候選窗最後一項可以還原成當初按的鍵() {
+    // 打 ui 空白變成中文時，↓ 選最後一項就換回英文 ui
+    let engine = makeEngine()
+    type(engine, "su3cl3")  // 你好
+    _ = engine.handle(.space)
+    let items = engine.sheetView()?.items.map(\.value) ?? []
+    #expect(items.last == "su3cl3")
+    _ = engine.handle(.character(Character("\(items.count)")))
+    #expect(engine.sheetView() == nil)
+    #expect(engine.handle(.enter).commitText == "su3cl3")
+}
