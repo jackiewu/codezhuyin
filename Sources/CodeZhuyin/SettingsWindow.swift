@@ -12,6 +12,7 @@ enum SettingKey {
     static let horizontalCandidates = "horizontalCandidates"
     static let caretMark = "caretMark"  // 句中插入點用 ‸ 記號（關＝用 app 的游標）
     static let rawKeysPreedit = "rawKeysPreedit"  // 組字區顯示按鍵、注音標在下面
+    static let catGuard = "catGuard"  // 貓貓模式：偵測亂按就鎖住輸入
     static let autoSpacing = "autoSpacing"
     static let pageSize = "pageSize"
     static let fuzzyReading = "fuzzyReading"
@@ -32,6 +33,7 @@ enum SettingKey {
             horizontalCandidates: false,
             caretMark: false,
             rawKeysPreedit: true,
+            catGuard: true,
             autoSpacing: true,
             pageSize: 9,
             fuzzyReading: false,
@@ -325,6 +327,7 @@ private struct SettingsView: View {
     @AppStorage(SettingKey.horizontalCandidates) private var horizontalCandidates = false
     @AppStorage(SettingKey.caretMark) private var caretMark = false
     @AppStorage(SettingKey.rawKeysPreedit) private var rawKeysPreedit = true
+    @AppStorage(SettingKey.catGuard) private var catGuard = true
     @AppStorage(SettingKey.autoSpacing) private var autoSpacing = true
     @AppStorage(SettingKey.pageSize) private var pageSize = 9
     @AppStorage(SettingKey.fuzzyReading) private var fuzzyReading = false
@@ -505,6 +508,14 @@ private struct SettingsView: View {
                 )
                 ToggleRow(title: "中英之間自動加空白", detail: "我愛 mac：漢字與英數字相鄰處補一個空格。", isOn: $autoSpacing)
                 ToggleRow(title: "Shift 單擊切換中／英", detail: "Shift＋字母永遠直接輸出英文字母。", last: true, isOn: $shiftToggle)
+            }
+            SectionTitle(text: "保護")
+            Card {
+                ToggleRow(
+                    title: "貓貓模式",
+                    detail: "貓踩鍵盤、小孩亂按時（一瞬間按下一堆鍵，或同一個鍵壓著不放）自動鎖住輸入。Esc 連按兩下或停手 5 秒解鎖。",
+                    last: true, isOn: $catGuard
+                )
             }
         }
     }

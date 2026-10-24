@@ -69,6 +69,18 @@ final class ModeHUD {
         )
     }
 
+    /// 貓貓模式鎖定中：顯示到解鎖為止
+    func showCatLock(near lineRect: NSRect) {
+        show(
+            VStack(spacing: 0) {
+                Text("🐱").font(.system(size: 24))
+                Text("Esc×2").font(.system(size: 9, weight: .medium)).foregroundStyle(.secondary)
+            }
+            .frame(width: 54, height: 54),
+            near: lineRect
+        )
+    }
+
     func hide(after delay: TimeInterval = 0) {
         let work = DispatchWorkItem { [panel] in
             NSAnimationContext.runAnimationGroup { context in

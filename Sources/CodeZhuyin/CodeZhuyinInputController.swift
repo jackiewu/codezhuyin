@@ -17,6 +17,9 @@ class CodeZhuyinInputController: IMKInputController {
     private static var chineseDetector = ChineseTypingDetector { reading in
         LexiconStore.lexicon?.unigrams(reading).isEmpty == false
     }
+    /// 貓貓模式：貓踩鍵盤就鎖住輸入
+    private static var catDetector = CatPawDetector()
+    private static var catUnlockWork: DispatchWorkItem?
     /// 大寫燈亮著卻在打注音：當它沒亮，直到使用者自己切換大寫才恢復
     private static var capsLockOverridden = false
     /// 這段放行字母在文件裡的起點（用位置算術驗證，不需 app 支援讀取內容）
@@ -134,12 +137,32 @@ class CodeZhuyinInputController: IMKInputController {
         guard let event, let client = sender as? IMKTextInput else { return false }
 
         if event.type == .flagsChanged {
+            if Self.catDetector.isLocked { return false }  // 鎖定中不讓貓踩 Shift、Caps Lock 切模式
             handleFlagsChanged(event, client: client)
             return false  // 修飾鍵事件永遠放行
         }
         guard event.type == .keyDown else { return false }
         Self.shiftDetector.noteKeyDown()
         Self.optionDetector.noteKeyDown()
+
+        if UserDefaults.standard.bool(forKey: SettingKey.catGuard) {
+            switch Self.catDetector.process(keyCode: event.keyCode, isRepeat: event.isARepeat, at: event.timestamp) {
+            case .pass:
+                break
+            case .lockNow:
+                Log.general.info("貓貓模式：偵測到亂按，鎖住輸入")
+                ModeHUD.shared.showCatLock(near: caretLineRect(client))
+                Self.scheduleCatUnlockCheck()
+                return true
+            case .swallow:
+                Self.scheduleCatUnlockCheck()
+                return true
+            case .unlockNow:
+                Self.catUnlockWork?.cancel()
+                ModeHUD.shared.hide()
+                return true
+            }
+        }
 
         // 語音輸入中按任何鍵：先把聽到的字上屏。Esc＝不要了；Enter＝只上屏；其他鍵照常處理
         if VoiceInput.shared.isListening {
@@ -386,6 +409,20 @@ class CodeZhuyinInputController: IMKInputController {
         } else {
             client.insertText(text, replacementRange: kNoRange)
         }
+    }
+
+    /// 停手 5 秒自動解鎖：每吞一個鍵就重新計時，時間到收掉鎖定提示
+    private static func scheduleCatUnlockCheck() {
+        catUnlockWork?.cancel()
+        let work = DispatchWorkItem {
+            if catDetector.unlockIfQuiet(at: ProcessInfo.processInfo.systemUptime) {
+                ModeHUD.shared.hide()
+            } else if catDetector.isLocked {
+                scheduleCatUnlockCheck()
+            }
+        }
+        catUnlockWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + CatPawDetector.quietUnlockSeconds + 0.1, execute: work)
     }
 
     private func caretLineRect(_ client: IMKTextInput) -> NSRect {
