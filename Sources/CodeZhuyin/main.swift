@@ -41,6 +41,7 @@ guard let bundleID = Bundle.main.bundleIdentifier else {
 }
 
 SettingKey.registerDefaults()
+Theme.applyAppearance()
 
 // IMKServer 必須以強參考存活整個行程，否則系統連不上輸入法
 let server = IMKServer(name: kConnectionName, bundleIdentifier: bundleID)

@@ -13,6 +13,8 @@ enum SettingKey {
     static let caretMark = "caretMark"  // 句中插入點用 ‸ 記號（關＝用 app 的游標）
     static let rawKeysPreedit = "rawKeysPreedit"  // 組字區顯示按鍵、注音標在下面
     static let catGuard = "catGuard"  // 貓貓模式：偵測亂按就鎖住輸入
+    static let appearance = "appearance"  // system／light／dark
+    static let accent = "accent"  // Theme.Accent
     static let autoSpacing = "autoSpacing"
     static let pageSize = "pageSize"
     static let fuzzyReading = "fuzzyReading"
@@ -34,6 +36,8 @@ enum SettingKey {
             caretMark: false,
             rawKeysPreedit: true,
             catGuard: true,
+            appearance: "system",
+            accent: "indigo",
             autoSpacing: true,
             pageSize: 9,
             fuzzyReading: false,
@@ -58,11 +62,49 @@ enum Theme {
         NSColor(srgbRed: CGFloat(hex >> 16 & 0xFF) / 255, green: CGFloat(hex >> 8 & 0xFF) / 255,
                 blue: CGFloat(hex & 0xFF) / 255, alpha: alpha)
     }
-    /// 品牌色：靛藍
-    static let brand = dynamic(rgb(0x4F46E5), rgb(0x818CF8))
-    static let brandSoft = dynamic(rgb(0x4F46E5, 0.10), rgb(0x818CF8, 0.18))
-    static let logo = LinearGradient(colors: [Color(nsColor: rgb(0x6366F1)), Color(nsColor: rgb(0x8B5CF6))],
-                                     startPoint: .topLeading, endPoint: .bottomTrailing)
+    /// 主色（偏好設定「外觀」可換）：淺色模式用的色、深色模式用的色、圖示漸層的兩端
+    enum Accent: String, CaseIterable, Identifiable {
+        case indigo, bamboo, amber, rose, slate
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .indigo: return "靛藍"
+            case .bamboo: return "竹綠"
+            case .amber: return "琥珀"
+            case .rose: return "玫瑰"
+            case .slate: return "石墨"
+            }
+        }
+        var hex: (light: UInt32, dark: UInt32, from: UInt32, to: UInt32) {
+            switch self {
+            case .indigo: return (0x4F46E5, 0x818CF8, 0x6366F1, 0x8B5CF6)
+            case .bamboo: return (0x3F7D5A, 0x7FBF97, 0x4F9A6E, 0x2F6B4F)
+            case .amber: return (0xB86E00, 0xF2B33D, 0xF59E0B, 0xD97706)
+            case .rose: return (0xD1366B, 0xF27AA1, 0xF43F5E, 0xDB2777)
+            case .slate: return (0x475569, 0x94A3B8, 0x64748B, 0x334155)
+            }
+        }
+    }
+
+    static var accent: Accent {
+        Accent(rawValue: UserDefaults.standard.string(forKey: SettingKey.accent) ?? "") ?? .indigo
+    }
+    static var brand: Color { dynamic(rgb(accent.hex.light), rgb(accent.hex.dark)) }
+    static var brandSoft: Color { dynamic(rgb(accent.hex.light, 0.10), rgb(accent.hex.dark, 0.18)) }
+    static var logo: LinearGradient {
+        LinearGradient(colors: [Color(nsColor: rgb(accent.hex.from)), Color(nsColor: rgb(accent.hex.to))],
+                       startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+    static func swatch(_ accent: Accent) -> Color { dynamic(rgb(accent.hex.light), rgb(accent.hex.dark)) }
+
+    /// 外觀：跟隨系統／淺色／深色，套用到輸入法自己的所有視窗（偏好設定、選字窗、提示）
+    static func applyAppearance() {
+        switch UserDefaults.standard.string(forKey: SettingKey.appearance) {
+        case "light": NSApplication.shared.appearance = NSAppearance(named: .aqua)
+        case "dark": NSApplication.shared.appearance = NSAppearance(named: .darkAqua)
+        default: NSApplication.shared.appearance = nil
+        }
+    }
     static let sidebar = dynamic(rgb(0xF3F3F7), rgb(0x1C1C21))
     static let page = dynamic(rgb(0xFAFAFC), rgb(0x141418))
     static let card = dynamic(.white, rgb(0x232329))
@@ -279,7 +321,7 @@ private struct FlowLayout: Layout {
 // MARK: - 頁面
 
 private enum Page: String, CaseIterable, Identifiable {
-    case overview, mixed, chinese, candidates, voice, smart, learning, contexts, update
+    case overview, mixed, chinese, candidates, voice, smart, learning, contexts, appearance, update
     var id: String { rawValue }
 
     var title: String {
@@ -292,6 +334,7 @@ private enum Page: String, CaseIterable, Identifiable {
         case .smart: return "智慧輸入"
         case .learning: return "學習資料"
         case .contexts: return "情境"
+        case .appearance: return "外觀"
         case .update: return "更新"
         }
     }
@@ -306,6 +349,7 @@ private enum Page: String, CaseIterable, Identifiable {
         case .smart: return "sparkles"
         case .learning: return "brain"
         case .contexts: return "square.stack.3d.up"
+        case .appearance: return "paintpalette"
         case .update: return "arrow.down.circle"
         }
     }
@@ -316,7 +360,7 @@ private enum Page: String, CaseIterable, Identifiable {
         ("打字", [.mixed, .chinese, .candidates]),
         ("詞庫", [.contexts, .learning]),
         ("進階", [.voice, .smart]),
-        ("系統", [.update]),
+        ("系統", [.appearance, .update]),
     ]
 }
 
@@ -331,6 +375,8 @@ private struct SettingsView: View {
     @AppStorage(SettingKey.caretMark) private var caretMark = false
     @AppStorage(SettingKey.rawKeysPreedit) private var rawKeysPreedit = true
     @AppStorage(SettingKey.catGuard) private var catGuard = true
+    @AppStorage(SettingKey.appearance) private var appearance = "system"
+    @AppStorage(SettingKey.accent) private var accent = "indigo"
     @AppStorage(SettingKey.autoSpacing) private var autoSpacing = true
     @AppStorage(SettingKey.pageSize) private var pageSize = 9
     @AppStorage(SettingKey.fuzzyReading) private var fuzzyReading = false
@@ -367,6 +413,8 @@ private struct SettingsView: View {
             .background(Theme.page)
         }
         .frame(width: 820, height: 600)
+        .id(accent)  // 換主色：整頁重畫，子元件的 Theme.brand 才會跟著換
+        .onChange(of: appearance) { _, _ in Theme.applyAppearance() }
         .alert("清除全部學習資料？", isPresented: $showingResetAlert) {
             Button("取消", role: .cancel) {}
             Button("清除", role: .destructive) {
@@ -463,6 +511,7 @@ private struct SettingsView: View {
         case .smart: smartPage
         case .learning: learningPage
         case .contexts: ContextsPage()
+        case .appearance: appearancePage
         case .update: UpdatePage()
         }
     }
@@ -537,6 +586,43 @@ private struct SettingsView: View {
             Card {
                 ToggleRow(title: "相似音修正", detail: "ㄓㄗ、ㄕㄙ、ㄣㄥ 打錯也找得到。正確讀音仍排最前面。", isOn: $fuzzyReading)
                 ToggleRow(title: "聯想詞", detail: "打字時提示你常接的下一個詞，Tab＋數字選。", last: true, isOn: $associations)
+            }
+        }
+    }
+
+    private var appearancePage: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            PageHeader(title: "外觀", subtitle: "偏好設定、選字窗和打字提示的顏色。")
+            Card {
+                Row(title: "外觀", detail: "跟隨系統，或固定淺色、深色。") {
+                    Picker("", selection: $appearance) {
+                        Text("跟隨系統").tag("system")
+                        Text("淺色").tag("light")
+                        Text("深色").tag("dark")
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 210)
+                }
+                Row(title: "主色", detail: "選字窗的反白、注音標籤、開關都用這個顏色。", showDivider: false) {
+                    HStack(spacing: 10) {
+                        ForEach(Theme.Accent.allCases) { option in
+                            Button {
+                                accent = option.rawValue
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Circle()
+                                        .fill(Theme.swatch(option))
+                                        .frame(width: 22, height: 22)
+                                        .overlay(Circle().strokeBorder(Color.primary.opacity(accent == option.rawValue ? 0.6 : 0), lineWidth: 2).padding(-3))
+                                    Text(verbatim: option.title).font(.system(size: 10.5))
+                                        .foregroundStyle(accent == option.rawValue ? Color.primary : Color.secondary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
             }
         }
     }

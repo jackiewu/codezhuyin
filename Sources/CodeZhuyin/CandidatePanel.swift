@@ -29,7 +29,7 @@ private struct CandidateView: View {
                 .padding(.vertical, 5)
                 .background {
                     if highlighted {
-                        RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.accentColor)
+                        RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Theme.brand)
                     }
                 }
                 .contentShape(Rectangle())
@@ -66,7 +66,7 @@ private struct CandidateView: View {
                 .background {
                     if highlighted {
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(Color.accentColor)
+                            .fill(Theme.brand)
                     }
                 }
                 .contentShape(Rectangle())
