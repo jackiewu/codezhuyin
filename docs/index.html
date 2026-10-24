@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="碼注音 CodeZhuyin：給工程師用的 macOS 注音輸入法，中英混打不用切換，反引號與半形標點直接輸出。">
+<title>碼注音 CodeZhuyin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+/* Layout: one reading column; a keyboard-key motif carries the subject (keycaps, raw keys over zhuyin badges). */
+:root {
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --ink: #1b1d2e;
+  --muted: #5d6178;
+  --line: #dfe1ec;
+  --accent: #4b4fd1;        /* 靛藍，與輸入法偏好設定的預設主色一致 */
+  --accent-soft: #e8e9fb;
+  --key: #fdfdff;
+  --key-edge: #c9cbdb;
+  --code-bg: #eef0f7;
+  --warn: #9a5b00;
+  --warn-soft: #fff4e0;
+  --font-display: "LXGW WenKai TC", "Kaiti TC", "BiauKai", serif;
+  --font-body: "Noto Sans TC", "PingFang TC", "Heiti TC", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12131c; --surface: #1a1c28; --ink: #e8e9f3; --muted: #a0a3ba; --line: #2c2f42;
+    --accent: #9a9dff; --accent-soft: #262a52; --key: #23263a; --key-edge: #3a3e58;
+    --code-bg: #20233a; --warn: #f2b45a; --warn-soft: #33270f; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12131c; --surface: #1a1c28; --ink: #e8e9f3; --muted: #a0a3ba; --line: #2c2f42;
+  --accent: #9a9dff; --accent-soft: #262a52; --key: #23263a; --key-edge: #3a3e58;
+  --code-bg: #20233a; --warn: #f2b45a; --warn-soft: #33270f; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.75;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 760px; margin: 0 auto; padding-block: 48px 80px; display: flex; flex-direction: column; gap: 64px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.3; margin: 0; }
+h2 { font-size: 1.75rem; }
+h3 { font-size: 1.15rem; }
+p { margin: 0; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code, kbd, .mono { font-family: var(--font-mono); font-size: .9em; }
+code { background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+section { display: flex; flex-direction: column; gap: 20px; }
+.eyebrow { font-size: .78rem; letter-spacing: .12em; color: var(--muted); font-weight: 500; }
+.lede { color: var(--muted); max-width: 62ch; }
+
+/* keycaps */
+kbd {
+  display: inline-block; min-width: 1.7em; padding: .05em .45em; text-align: center;
+  background: var(--key); color: var(--ink);
+  border: 1px solid var(--key-edge); border-bottom-width: 3px; border-radius: 6px;
+  font-size: .85em; line-height: 1.5; white-space: nowrap;
+}
+
+/* hero */
+header { display: flex; flex-direction: column; gap: 22px; }
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand-mark {
+  width: 56px; height: 56px; border-radius: 14px; flex: none;
+  display: grid; place-items: center; background: var(--accent); color: var(--bg);
+  font-family: var(--font-display); font-size: 34px; font-weight: 700;
+}
+h1 { font-size: clamp(2.2rem, 7vw, 3.2rem); }
+h1 small { display: block; font-family: var(--font-mono); font-size: .9rem; color: var(--muted); font-weight: 400; letter-spacing: .04em; }
+.tagline { font-size: 1.2rem; max-width: 34ch; }
+
+.editor {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+}
+.editor-bar { display: flex; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--line); align-items: center; }
+.editor-bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.editor-bar span { margin-left: 8px; font-size: .78rem; color: var(--muted); font-family: var(--font-mono); }
+.editor-body { padding: 22px 20px 26px; overflow-x: auto; display: flex; flex-direction: column; gap: 22px; }
+.line { font-size: 1.15rem; white-space: nowrap; }
+.line .bt { color: var(--accent); font-weight: 600; font-family: var(--font-mono); }
+.line .en { font-family: var(--font-mono); }
+.caret { display: inline-block; width: 2px; height: 1.15em; background: var(--accent); vertical-align: -0.2em; margin-left: 2px; animation: blink 1.1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .caret { animation: none; } }
+
+.preedit { display: flex; align-items: flex-start; gap: 18px; flex-wrap: wrap; }
+.preedit .label { font-size: .78rem; color: var(--muted); width: 100%; }
+.syl { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.syl .raw { font-family: var(--font-mono); font-size: 1.3rem; border-bottom: 2px solid var(--accent); padding: 0 2px; letter-spacing: .08em; }
+.badge { background: var(--accent); color: var(--bg); border-radius: 5px; padding: 0 6px; font-size: .85rem; line-height: 1.6; }
+.arrow { align-self: center; color: var(--muted); font-family: var(--font-mono); }
+.out { align-self: center; font-size: 1.3rem; }
+
+.cta { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 8px;
+  text-decoration: none; font-weight: 500; border: 1px solid var(--accent);
+}
+.btn.primary { background: var(--accent); color: var(--bg); }
+.btn.ghost { color: var(--accent); background: transparent; }
+
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: .9rem; border-top: 1px solid var(--line); padding-top: 14px; }
+nav.toc a { text-decoration: none; color: var(--muted); }
+nav.toc a:hover { color: var(--accent); }
+
+/* comparison table */
+.table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: .95rem; }
+th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font-weight: 500; color: var(--muted); font-size: .82rem; letter-spacing: .06em; }
+td:last-child { color: var(--ink); font-weight: 500; }
+td:nth-child(2) { color: var(--muted); }
+
+/* features */
+.feature-groups { display: flex; flex-direction: column; gap: 36px; }
+.group { display: grid; grid-template-columns: 9.5rem 1fr; gap: 18px; }
+.group > h3 { padding-top: 2px; color: var(--accent); }
+.group ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.group li { display: flex; flex-direction: column; gap: 2px; }
+.group li b { font-weight: 700; }
+.group li span { color: var(--muted); font-size: .95rem; }
+@media (max-width: 620px) { .group { grid-template-columns: 1fr; gap: 10px; } }
+
+/* install steps */
+ol.steps { list-style: none; counter-reset: s; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 28px; }
+ol.steps > li { counter-increment: s; display: grid; grid-template-columns: 2.4rem 1fr; gap: 14px; }
+ol.steps > li::before {
+  content: counter(s); font-family: var(--font-display); font-size: 1.3rem; font-weight: 700;
+  width: 2.2rem; height: 2.2rem; border-radius: 50%; display: grid; place-items: center;
+  border: 1.5px solid var(--accent); color: var(--accent);
+}
+.step { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.step p { color: var(--muted); }
+.step p strong { color: var(--ink); }
+
+.cmd { display: flex; align-items: stretch; background: var(--code-bg); border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+.cmd pre { margin: 0; padding: 12px 14px; flex: 1; min-width: 0; overflow-x: auto; font-family: var(--font-mono); font-size: .85rem; line-height: 1.6; }
+.cmd pre .prompt { color: var(--muted); user-select: none; }
+.cmd button {
+  flex: none; border: 0; border-left: 1px solid var(--line); background: transparent; color: var(--accent);
+  font: 500 .8rem var(--font-body); padding: 0 14px; cursor: pointer;
+}
+.cmd button:hover { background: var(--accent-soft); }
+
+.note { background: var(--warn-soft); color: var(--ink); border-radius: 8px; padding: 12px 16px; font-size: .92rem; }
+.note b { color: var(--warn); }
+.path { font-family: var(--font-mono); font-size: .85em; color: var(--ink); }
+
+/* keys cheat sheet */
+dl.keys { margin: 0; display: grid; grid-template-columns: minmax(9rem, max-content) 1fr; border-top: 1px solid var(--line); }
+dl.keys dt, dl.keys dd { margin: 0; padding: 11px 0; border-bottom: 1px solid var(--line); }
+dl.keys dt { padding-right: 18px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; align-content: flex-start; }
+dl.keys dd { color: var(--muted); font-size: .95rem; min-width: 0; }
+@media (max-width: 520px) {
+  dl.keys { grid-template-columns: 1fr; }
+  dl.keys dt { border-bottom: 0; padding-bottom: 2px; }
+  dl.keys dd { padding-top: 0; }
+}
+
+.trouble { display: flex; flex-direction: column; gap: 22px; }
+.trouble > div { display: flex; flex-direction: column; gap: 8px; }
+.trouble h3 { font-family: var(--font-body); font-size: 1rem; font-weight: 700; }
+.trouble p { color: var(--muted); }
+
+footer { color: var(--muted); font-size: .85rem; border-top: 1px solid var(--line); padding-top: 18px; display: flex; flex-direction: column; gap: 6px; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header>
+  <div class="brand">
+    <div class="brand-mark" aria-hidden="true">碼</div>
+    <h1>碼注音<small>CodeZhuyin · macOS 注音輸入法</small></h1>
+  </div>
+  <p class="tagline">給工程師用的注音輸入法。中英混打不用切換，反引號和鍵盤上的標點照原樣打出來。</p>
+
+  <div class="editor" aria-label="打字示意">
+    <div class="editor-bar"><i></i><i></i><i></i><span>notes.md</span></div>
+    <div class="editor-body">
+      <div class="line">這個 <span class="en">API</span> 回傳 <span class="bt">`</span><span class="en">null</span><span class="bt">`</span> 的時候要先檢查 <span class="bt">`</span><span class="en">user_id</span><span class="bt">`</span> 欄位<span class="caret"></span></div>
+      <div class="preedit">
+        <div class="label">組字區顯示你按的鍵，下面的藍色小標籤是對應的注音：</div>
+        <div class="syl"><span class="raw">su3</span><span class="badge">ㄋㄧˇ</span></div>
+        <div class="syl"><span class="raw">cl3</span><span class="badge">ㄏㄠˇ</span></div>
+        <span class="arrow">空白 →</span>
+        <span class="out">你好</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="cta">
+    <a class="btn primary" href="https://github.com/jackiewu/codezhuyin/releases/tag/latest-main" target="_blank" rel="noopener">下載最新版</a>
+    <a class="btn ghost" href="https://github.com/jackiewu/codezhuyin" target="_blank" rel="noopener">GitHub 原始碼</a>
+  </div>
+
+  <nav class="toc" aria-label="本頁目錄">
+    <a href="#diff">跟一般注音的差別</a>
+    <a href="#features">功能</a>
+    <a href="#install">安裝</a>
+    <a href="#keys">按鍵速查</a>
+    <a href="#trouble">更新與疑難排解</a>
+  </nav>
+</header>
+
+<section id="diff">
+  <div class="eyebrow">為什麼要做這個</div>
+  <h2>跟一般注音輸入法的差別</h2>
+  <p class="lede">寫 Markdown、commit message、Slack 技術討論時，最常卡住的是 <kbd>`</kbd> 跳出符號表、標點變全形、英文被當成注音。碼注音把這幾件事改成工程師習慣的樣子。</p>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>情境</th><th>一般注音輸入法</th><th>碼注音</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>`</kbd></td><td>打開符號表</td><td>直接輸出 <code>`</code>，<code>```</code> 區塊也一樣</td></tr>
+        <tr><td><kbd>'</kbd> <kbd>[</kbd> <kbd>]</kbd> <kbd>?</kbd> <kbd>!</kbd> <kbd>:</kbd></td><td>變成全形 、「」？！：</td><td>預設半形原樣（想要全形可在偏好設定打開）</td></tr>
+        <tr><td><code>`foo`</code>、<code>user_id</code></td><td>標點被吞掉，或 foo 被當成注音</td><td>打到一半的鍵當英文送出，再接標點</td></tr>
+        <tr><td>中英切換</td><td>要按 Caps Lock 或 Shift</td><td>自動判斷；Shift 單擊仍可手動切</td></tr>
+        <tr><td>網址、路徑</td><td>得切英文才打得出 <code>google.com</code></td><td>英文後面打 <code>. / -</code> 會接續英文</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="features">
+  <div class="eyebrow">功能一覽</div>
+  <h2>打字時會遇到的事，它都先想過了</h2>
+  <div class="feature-groups">
+    <div class="group">
+      <h3>中英混打</h3>
+      <ul>
+        <li><b>不用切換輸入法</b><span>直接打 <code>docker</code>、<code>kubectl</code>，英文詞典加上技術用詞會自動認出來；按空白候選窗同時列出 google／Google／GOOGLE 和中文。</span></li>
+        <li><b>短英文也認得</b><span><code>db</code>、<code>js</code>、<code>ip</code> 這種兩個字母的英文會被認出來。像注音的（<code>ui</code>、<code>ai</code>、<code>go</code>）會跳英文提示，按 <kbd>Tab</kbd> 或 <kbd>↓</kbd> 選英文，空白照常出中文。後面直接接注音也會拆對：ui跟、ai的。</span></li>
+        <li><b>網址、路徑、底線</b><span>英文後面打 <code>.</code> <code>/</code> <code>-</code> 會接著打英文（google.com、src/app、foo-bar），打回注音就自動回中文。</span></li>
+        <li><b>數字直出</b><span>組不出注音的數字（123456、2026）直接顯示數字，<kbd>Enter</kbd> 就送出。組得出字的（283＝打）仍是中文，要數字就按 <kbd>Tab</kbd>。</span></li>
+      </ul>
+    </div>
+    <div class="group">
+      <h3>標點與程式碼</h3>
+      <ul>
+        <li><b>反引號直出</b><span><kbd>`</kbd> 永遠是 <code>`</code>，行內程式碼、<code>```</code> 區塊都不用切換。</span></li>
+        <li><b>半形標點</b><span><code>_ ( ) [ ] { } &lt; &gt; = ' " ! ? :</code> 照英文鍵盤輸出，不轉全形。</span></li>
+        <li><b>Tab 送原始鍵</b><span>組字中按 <kbd>Tab</kbd>，打到一半的鍵照鍵盤原樣送出。要打分號就 <kbd>;</kbd> <kbd>Tab</kbd>。</span></li>
+      </ul>
+    </div>
+    <div class="group">
+      <h3>選字與學習</h3>
+      <ul>
+        <li><b>按鍵還原</b><span>英文被轉成中文時，按 <kbd>↓</kbd> 打開候選，最後一項就是當初按的鍵，選它換回原樣。</span></li>
+        <li><b>越用越準</b><span>選過的字、改過的詞、詞語接續習慣都會記住。同一串注音連續兩次改字後上屏，就自動學成新詞。</span></li>
+        <li><b>情境詞庫</b><span>一個領域一組專有名詞，打開的情境詞會優先出現。可以手動加詞，或把提示詞給 ChatGPT、Claude 等外部 AI，把它回的 JSON 貼回來逐項確認後匯入。</span></li>
+        <li><b>本機 AI（選用）</b><span>開啟智慧輸入後，停手時會用本機的 Breeze 模型補句、修同音錯字，不連網，約佔 4 GB 記憶體。</span></li>
+      </ul>
+    </div>
+    <div class="group">
+      <h3>介面</h3>
+      <ul>
+        <li><b>按鍵顯示＋注音標籤</b><span>組字區顯示你按的鍵，下方藍色小標籤是注音。不習慣可在「選字窗」頁關掉，改回顯示注音。</span></li>
+        <li><b>外觀主題</b><span>淺色、深色、跟隨系統；主色有靛藍、竹綠、琥珀、玫瑰、石墨。</span></li>
+        <li><b>簡體輸出</b><span>偏好設定或選單列打開「輸出簡體中文」，照打注音，送出簡體字。</span></li>
+      </ul>
+    </div>
+    <div class="group">
+      <h3>其他</h3>
+      <ul>
+        <li><b>貓貓模式</b><span>預設開啟。貓踩鍵盤、小孩亂按時自動鎖住輸入，游標旁顯示 🐱。<kbd>Esc</kbd> 連按兩下或停手 5 秒解鎖。開關在「中英混打」頁。</span></li>
+        <li><b>一鍵更新</b><span>偏好設定的「更新」頁會顯示新版內容，可以直接下載安裝，完成後自動重啟。</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="eyebrow">安裝</div>
+  <h2>安裝步驟</h2>
+  <p class="lede">需要 macOS 14 以上。碼注音沒有付費的 Apple 開發者憑證，所以要先手動解除 macOS 的下載隔離。</p>
+  <ol class="steps">
+    <li><div class="step">
+      <h3>下載 zip 並解壓縮</h3>
+      <p>到 GitHub Releases 的 <a href="https://github.com/jackiewu/codezhuyin/releases/tag/latest-main" target="_blank" rel="noopener"><strong>latest-main</strong></a> 下載 <span class="path">CodeZhuyin-0.1.xx.zip</span>，解壓後會得到「碼注音 CodeZhuyin 0.1.xx」資料夾，裡面有 <span class="path">CodeZhuyin.app</span>、<span class="path">安裝碼注音.command</span> 和說明檔。</p>
+    </div></li>
+    <li><div class="step">
+      <h3>解除隔離並執行安裝程式</h3>
+      <p>打開「終端機」，輸入 <code>cd </code>（後面留一個空格），把解壓出來的資料夾拖進終端機視窗後按 <kbd>Enter</kbd>，再執行：</p>
+      <div class="cmd"><pre><span class="prompt">$ </span>xattr -dr com.apple.quarantine . &amp;&amp; ./安裝碼注音.command</pre><button type="button" data-copy="xattr -dr com.apple.quarantine . &amp;&amp; ./安裝碼注音.command">複製</button></div>
+      <p>安裝程式會把輸入法複製到 <span class="path">~/Library/Input Methods</span> 並向系統註冊；有舊版會先關掉再換掉。</p>
+      <div class="note"><b>為什麼不能直接雙擊？</b>新版 macOS 已經不能用「右鍵 › 打開」略過 Gatekeeper。另一個方法是雙擊被擋之後，到「系統設定 › 隱私權與安全性」按「仍要打開」。</div>
+    </div></li>
+    <li><div class="step">
+      <h3>登出再登入</h3>
+      <p>macOS 的限制：新輸入法要重新登入才會出現在清單裡。只有第一次安裝需要。</p>
+    </div></li>
+    <li><div class="step">
+      <h3>加入輸入來源</h3>
+      <p>系統設定 › 鍵盤 › 輸入來源 › 編輯 › <kbd>＋</kbd> › 繁體中文 › 選「<strong>碼注音</strong>」加入。之後從選單列切到碼注音就能開始打字。</p>
+    </div></li>
+    <li><div class="step">
+      <h3>看一下操作說明</h3>
+      <p>點選單列的「碼」圖示 › <strong>操作說明…</strong>，裡面有所有快捷鍵。偏好設定也從這個選單打開。</p>
+    </div></li>
+  </ol>
+</section>
+
+<section id="keys">
+  <div class="eyebrow">操作</div>
+  <h2>按鍵速查</h2>
+  <dl class="keys">
+    <dt>注音鍵</dt><dd>照大千（標準）鍵盤打，打完聲調就成一個字。</dd>
+    <dt><kbd>空白</kbd></dt><dd>組字中＝一聲；已有字＝打開候選窗。英文後面＝英文加空格。</dd>
+    <dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>候選窗裡上下選字；<kbd>↓</kbd> 也能直接打開候選（最後一項是原始按鍵）。</dd>
+    <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>直接選候選字，也可以用滑鼠點。</dd>
+    <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>移動游標回去改字或插字。</dd>
+    <dt><kbd>Enter</kbd></dt><dd>送出組字區內容；英文候選時直接送出英文。</dd>
+    <dt><kbd>Tab</kbd></dt><dd>把打到一半的鍵照鍵盤原樣送出（<kbd>;</kbd> <kbd>Tab</kbd>＝分號）；兩字母英文提示時選英文；數字後按 <kbd>Tab</kbd> 輸出原樣。</dd>
+    <dt><kbd>Tab</kbd> <kbd>1</kbd>–<kbd>5</kbd></dt><dd>選聯想詞（你平常最常接著打的詞），<kbd>Tab</kbd> 兩下＝第一個。</dd>
+    <dt><kbd>Shift</kbd> 單擊</dt><dd>手動切換中／英，游標旁會閃「中」或「A」。</dd>
+    <dt><kbd>Shift</kbd>＋字母</dt><dd>開始英文段（首字大寫），之後小寫原樣接續；直接打注音會自動回中文。</dd>
+    <dt><kbd>Caps Lock</kbd></dt><dd>每按一次切到另一個模式。</dd>
+    <dt>長按字母／數字</dt><dd>直接輸出那個字元，例如按住 <kbd>g</kbd> 出 g。</dd>
+    <dt>今天＋<kbd>空白</kbd></dt><dd>候選多出 2026-10-24、民國年、星期等寫法；打「現在」出時間。</dd>
+    <dt>右 <kbd>Option</kbd> 單擊</dt><dd>語音輸入，再按一下結束上屏，用 Mac 內建辨識、在本機執行。</dd>
+    <dt><kbd>Esc</kbd> <kbd>Esc</kbd></dt><dd>解除貓貓模式的鎖定。</dd>
+  </dl>
+</section>
+
+<section id="trouble">
+  <div class="eyebrow">維護</div>
+  <h2>更新與疑難排解</h2>
+  <div class="trouble">
+    <div>
+      <h3>怎麼更新</h3>
+      <p>打開偏好設定的「更新」頁，有新版就按下載安裝，完成後會自動重啟。也可以照上面的安裝步驟重跑一次新的 zip，不用再登出。</p>
+    </div>
+    <div>
+      <h3>更新後還是舊版行為</h3>
+      <p>很舊的版本（0.1.0 附近）更新完不會自己重啟。在終端機執行下面這行，切回碼注音時就會載入新版：</p>
+      <div class="cmd"><pre><span class="prompt">$ </span>pkill -x CodeZhuyin</pre><button type="button" data-copy="pkill -x CodeZhuyin">複製</button></div>
+    </div>
+    <div>
+      <h3>選單列圖示還是舊的「融」</h3>
+      <p>這是 macOS 的圖示快取，安裝包裡已經是「碼」。登出再登入，或在輸入來源裡把碼注音移除後重新加入。</p>
+    </div>
+    <div>
+      <h3>英文被轉成中文了</h3>
+      <p>按 <kbd>↓</kbd>，候選窗最後一項就是你按的原始鍵，選它換回來。學壞的詞可以從選單列的「學習資料…」逐筆刪掉。</p>
+    </div>
+    <div>
+      <h3>突然打不出字</h3>
+      <p>可能是貓貓模式誤判，游標旁會有 🐱。<kbd>Esc</kbd> 連按兩下或停手 5 秒就會解鎖；常誤判可以到「中英混打」頁關掉。</p>
+    </div>
+    <div>
+      <h3>移除</h3>
+      <p>把 <span class="path">~/Library/Input Methods/CodeZhuyin.app</span> 丟到垃圾桶，再到輸入來源移除「碼注音」。學習資料在 <span class="path">~/Library/Application Support/CodeZhuyin/</span>，要清乾淨就一起刪。</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>本頁對應 0.1.43。以 <a href="https://github.com/0rigind1865-bit/BlendKey" target="_blank" rel="noopener">融鍵 BlendKey</a>（MIT）為基底改寫，詞庫來自 <a href="https://github.com/openvanilla/McBopomofo" target="_blank" rel="noopener">小麥注音 McBopomofo</a>（MIT）。</p>
+  <p>完整更新紀錄見 repo 的 CHANGELOG.md。</p>
+</footer>
+
+</div>
+
+<script>
+document.querySelectorAll('button[data-copy]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var text = btn.getAttribute('data-copy');
+    var done = function () { btn.textContent = '已複製'; setTimeout(function () { btn.textContent = '複製'; }, 1600); };
+    var fallback = function () {
+      var pre = btn.previousElementSibling;
+      var range = document.createRange();
+      range.selectNodeContents(pre);
+      var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      btn.textContent = '已選取，按 ⌘C';
+    };
+    try {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } catch (e) { fallback(); }
+  });
+});
+</script>
+</body>
+</html>
