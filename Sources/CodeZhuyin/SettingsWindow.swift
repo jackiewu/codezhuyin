@@ -10,7 +10,7 @@ enum SettingKey {
     static let simplifiedOutput = "simplifiedOutput"
     static let spaceCommitsEnglish = "spaceCommitsEnglish"
     static let horizontalCandidates = "horizontalCandidates"
-    static let caretMark = "caretMark"  // 句中插入點用 ‸ 記號（關＝用 app 的游標）
+    static let caretMark = "caretBar"  // 句中插入點畫 | 記號（關＝只靠 app 的游標）。舊鍵 caretMark 預設關，改名讓大家都換成預設開
     static let rawKeysPreedit = "rawKeysPreedit"  // 組字區顯示按鍵、注音標在下面
     static let catGuard = "catGuard"  // 貓貓模式：偵測亂按就鎖住輸入
     static let appearance = "appearance"  // system／light／dark
@@ -33,7 +33,7 @@ enum SettingKey {
             simplifiedOutput: false,
             spaceCommitsEnglish: true,
             horizontalCandidates: false,
-            caretMark: false,
+            caretMark: true,
             rawKeysPreedit: true,
             catGuard: true,
             appearance: "system",
@@ -372,7 +372,7 @@ private struct SettingsView: View {
     @AppStorage(SettingKey.simplifiedOutput) private var simplifiedOutput = false
     @AppStorage(SettingKey.spaceCommitsEnglish) private var spaceCommitsEnglish = true
     @AppStorage(SettingKey.horizontalCandidates) private var horizontalCandidates = false
-    @AppStorage(SettingKey.caretMark) private var caretMark = false
+    @AppStorage(SettingKey.caretMark) private var caretMark = true
     @AppStorage(SettingKey.rawKeysPreedit) private var rawKeysPreedit = true
     @AppStorage(SettingKey.catGuard) private var catGuard = true
     @AppStorage(SettingKey.appearance) private var appearance = "system"
@@ -638,8 +638,8 @@ private struct SettingsView: View {
                     isOn: $rawKeysPreedit
                 )
                 ToggleRow(
-                    title: "用 ‸ 標示插入點",
-                    detail: "←→ 回頭改字時，預設用 app 本身的游標標示位置；少數 app 看不到游標時再打開這個。",
+                    title: "標示插入點",
+                    detail: "←→ 回頭改字或插字時，在插入位置畫一條主色的 |（很多 app 在組字區裡不畫游標）。",
                     isOn: $caretMark
                 )
                 Row(title: "每頁字數", detail: "一頁顯示幾個候選字。", showDivider: false) {

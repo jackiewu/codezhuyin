@@ -185,8 +185,8 @@ public final class InputEngine {
 
     /// 插入位置記號：組字中的游標不在句尾時顯示，讓使用者看得見會插在哪兩個字中間。
     /// macOS 不保證 app 會在組字文字裡畫游標，所以自己畫一個（純顯示，不會被送出）。
-    public static let caretMark = "‸"
-    /// 句中插入點畫 ‸ 記號；關掉時由 app 自己的游標表示（殼層把選取範圍設成零長度）
+    public static let caretMark = "|"
+    /// 句中插入點畫 | 記號；關掉時由 app 自己的游標表示（殼層把選取範圍設成零長度）
     public var caretMarkEnabled = true
 
     /// 數字（1.62）或「數字＋單位」（1mm、0.4mm、5V）——Tab 直接輸出原樣。

@@ -622,25 +622,31 @@ class CodeZhuyinInputController: IMKInputController {
         for piece in preedit.pieces {
             let style: Int
             switch piece.style {
-            case .converted: style = Int(kTSMHiliteConvertedText)
-            case .active: style = Int(kTSMHiliteSelectedConvertedText)
+            case .converted, .active: style = Int(kTSMHiliteConvertedText)
             case .raw: style = Int(kTSMHiliteSelectedRawText)
             case .caret: style = Int(kTSMHiliteRawText)
             }
             let range = NSRange(location: location, length: piece.text.utf16.count)
-            let attrs = mark(forStyle: style, at: range) as? [NSAttributedString.Key: Any]
+            var attrs = mark(forStyle: style, at: range) as? [NSAttributedString.Key: Any]
                 ?? [.underlineStyle: NSUnderlineStyle.single.rawValue]
+            switch piece.style {
+            case .active:
+                // 游標所在的詞：粗底線就好。舊版用反白，很多 app 反白時就不畫游標，看不出插入點在哪
+                attrs[.underlineStyle] = NSUnderlineStyle.thick.rawValue
+            case .caret:
+                // 插入點記號用主色，一眼看得出不是字
+                attrs[.foregroundColor] = NSColor(Theme.brand)
+                attrs[.underlineStyle] = 0
+            default:
+                break
+            }
             attributed.append(NSAttributedString(string: piece.text, attributes: attrs))
             location += piece.text.utf16.count
         }
-        // 預設：選取範圍零長度，app 會在插入點畫自己的游標（今|天）；所在的字已用粗底線標出。
-        // 開了 ‸ 記號就沿用舊做法，以反白呈現（零長度游標在少數 app 看不出來）
-        let selection = UserDefaults.standard.bool(forKey: SettingKey.caretMark)
-            ? preedit.activeRangeUTF16.map { NSRange(location: $0.start, length: $0.length) }
-            : nil
+        // 選取範圍零長度放在插入點：有畫游標的 app 會畫在這；不畫的 app 靠引擎插入的 | 記號
         client.setMarkedText(
             attributed,
-            selectionRange: selection ?? NSRange(location: preedit.caretUTF16, length: 0),
+            selectionRange: NSRange(location: preedit.caretUTF16, length: 0),
             replacementRange: documentRange ?? kNoRange
         )
     }
