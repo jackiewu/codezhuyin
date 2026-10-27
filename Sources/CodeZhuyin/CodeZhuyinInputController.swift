@@ -489,7 +489,7 @@ class CodeZhuyinInputController: IMKInputController {
             engine.backtickOpensSymbolSheet = defaults.bool(forKey: SettingKey.backtickSymbolSheet)
             engine.spaceCommitsEnglish = defaults.bool(forKey: SettingKey.spaceCommitsEnglish)
             engine.horizontalCandidates = defaults.bool(forKey: SettingKey.horizontalCandidates)
-            engine.caretMarkEnabled = defaults.bool(forKey: SettingKey.caretMark)
+            engine.caretMarkEnabled = false  // 插入點改在殼層用底線標示，引擎不插記號
             engine.rawKeysPreedit = defaults.bool(forKey: SettingKey.rawKeysPreedit)
             engine.outputTransform = defaults.bool(forKey: SettingKey.simplifiedOutput) ? Self.toSimplified : nil
             engine.autoSpacing = defaults.bool(forKey: SettingKey.autoSpacing)
@@ -627,23 +627,23 @@ class CodeZhuyinInputController: IMKInputController {
             case .caret: style = Int(kTSMHiliteRawText)
             }
             let range = NSRange(location: location, length: piece.text.utf16.count)
-            var attrs = mark(forStyle: style, at: range) as? [NSAttributedString.Key: Any]
+            let attrs = mark(forStyle: style, at: range) as? [NSAttributedString.Key: Any]
                 ?? [.underlineStyle: NSUnderlineStyle.single.rawValue]
-            switch piece.style {
-            case .active:
-                // 游標所在的詞：粗底線就好。舊版用反白，很多 app 反白時就不畫游標，看不出插入點在哪
-                attrs[.underlineStyle] = NSUnderlineStyle.thick.rawValue
-            case .caret:
-                // 插入點記號用主色，一眼看得出不是字
-                attrs[.foregroundColor] = NSColor(Theme.brand)
-                attrs[.underlineStyle] = 0
-            default:
-                break
-            }
             attributed.append(NSAttributedString(string: piece.text, attributes: attrs))
             location += piece.text.utf16.count
         }
-        // 選取範圍零長度放在插入點：有畫游標的 app 會畫在這；不畫的 app 靠引擎插入的 | 記號
+        // 句中的插入點：游標左邊那個字畫主色粗底線（不插記號、不反白——反白時很多 app 不畫游標，
+        // 插 | 又像多打了一個字）。句尾不標，app 的游標本來就在最後；游標在句首時標第一個字、用點狀
+        if UserDefaults.standard.bool(forKey: SettingKey.caretMark), let active = preedit.activeRangeUTF16,
+           preedit.caretUTF16 < location {
+            var underline = NSUnderlineStyle.thick.rawValue
+            if preedit.caretUTF16 == 0 { underline |= NSUnderlineStyle.patternDot.rawValue }
+            attributed.addAttributes(
+                [.underlineStyle: underline, .underlineColor: NSColor(Theme.brand)],
+                range: NSRange(location: active.start, length: active.length)
+            )
+        }
+        // 選取範圍零長度放在插入點：有畫游標的 app 會畫在這
         client.setMarkedText(
             attributed,
             selectionRange: NSRange(location: preedit.caretUTF16, length: 0),

@@ -10,7 +10,7 @@ enum SettingKey {
     static let simplifiedOutput = "simplifiedOutput"
     static let spaceCommitsEnglish = "spaceCommitsEnglish"
     static let horizontalCandidates = "horizontalCandidates"
-    static let caretMark = "caretBar"  // 句中插入點畫 | 記號（關＝只靠 app 的游標）。舊鍵 caretMark 預設關，改名讓大家都換成預設開
+    static let caretMark = "caretBar"  // 句中插入點：游標左邊的字畫主色底線（關＝只靠 app 的游標）。舊鍵 caretMark 預設關，改名讓預設開
     static let rawKeysPreedit = "rawKeysPreedit"  // 組字區顯示按鍵、注音標在下面
     static let catGuard = "catGuard"  // 貓貓模式：偵測亂按就鎖住輸入
     static let appearance = "appearance"  // system／light／dark
@@ -639,7 +639,7 @@ private struct SettingsView: View {
                 )
                 ToggleRow(
                     title: "標示插入點",
-                    detail: "←→ 回頭改字或插字時，在插入位置畫一條主色的 |（很多 app 在組字區裡不畫游標）。",
+                    detail: "←→ 回頭改字或插字時，游標左邊那個字畫主色粗底線（很多 app 在組字區裡不畫游標）；游標在句首時畫點狀底線。",
                     isOn: $caretMark
                 )
                 Row(title: "每頁字數", detail: "一頁顯示幾個候選字。", showDivider: false) {
