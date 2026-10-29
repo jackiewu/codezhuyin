@@ -632,15 +632,15 @@ class CodeZhuyinInputController: IMKInputController {
             attributed.append(NSAttributedString(string: piece.text, attributes: attrs))
             location += piece.text.utf16.count
         }
-        // 句中的插入點：游標左邊那個字畫主色粗底線（不插記號、不反白——反白時很多 app 不畫游標，
-        // 插 | 又像多打了一個字）。句尾不標，app 的游標本來就在最後；游標在句首時標第一個字、用點狀
-        if UserDefaults.standard.bool(forKey: SettingKey.caretMark), let active = preedit.activeRangeUTF16,
+        // 句中的插入點：游標「右邊」那個字畫主色粗底線，像方塊游標——打的字會插在它前面。
+        // （畫在左邊的字會被看成插在它前面，實測容易改錯；插 | 記號又像多打了一個字；
+        // 反白時很多 app 不畫游標。）句尾不標，app 的游標本來就在最後
+        if UserDefaults.standard.bool(forKey: SettingKey.caretMark), preedit.activeRangeUTF16 != nil,
            preedit.caretUTF16 < location {
-            var underline = NSUnderlineStyle.thick.rawValue
-            if preedit.caretUTF16 == 0 { underline |= NSUnderlineStyle.patternDot.rawValue }
+            let next = (attributed.string as NSString).rangeOfComposedCharacterSequence(at: preedit.caretUTF16)
             attributed.addAttributes(
-                [.underlineStyle: underline, .underlineColor: NSColor(Theme.brand)],
-                range: NSRange(location: active.start, length: active.length)
+                [.underlineStyle: NSUnderlineStyle.thick.rawValue, .underlineColor: NSColor(Theme.brand)],
+                range: next
             )
         }
         // 選取範圍零長度放在插入點：有畫游標的 app 會畫在這
