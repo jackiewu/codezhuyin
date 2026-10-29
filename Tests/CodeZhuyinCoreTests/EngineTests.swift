@@ -56,7 +56,8 @@ private func type(_ engine: InputEngine, _ keys: String) {
 @Test func 游標回改字() {
     let engine = makeEngine()
     type(engine, "su3cl3")
-    _ = engine.handle(.arrowLeft)   // 游標移到 你|好
+    _ = engine.handle(.arrowLeft)   // 你|好
+    _ = engine.handle(.arrowLeft)   // |你好：↓ 換的是游標右邊的字
     _ = engine.handle(.arrowDown)   // 開「你」所在詞段的候選
     let sheet = engine.sheetView()
     #expect(sheet != nil)
@@ -110,7 +111,8 @@ private func type(_ engine: InputEngine, _ keys: String) {
     let engine = makeEngine()
     type(engine, "su3cl3")
     let atEnd = engine.preedit().activeRangeUTF16
-    _ = engine.handle(.arrowLeft)
+    _ = engine.handle(.arrowLeft)  // 你|好：標的是右邊的「好」，跟句尾一樣
+    _ = engine.handle(.arrowLeft)  // |你好：換標「你」
     let moved = engine.preedit().activeRangeUTF16
     #expect(atEnd?.length == 1, "反白應只框一個字，不是整個詞")
     #expect(atEnd?.start != moved?.start, "詞內移動游標，反白位置要跟著變")

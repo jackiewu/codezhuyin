@@ -490,7 +490,7 @@ public final class InputEngine {
         // 內移動游標時畫面完全沒變化，使用者看不出游標在哪。
         var activeRange: (start: Int, length: Int)?
         if composer.isEmpty, !elements.isEmpty {
-            let index = max(0, min(cursor - 1, elements.count - 1))
+            let index = anchorIndex
             let texts = elementTexts()
             var start = texts[..<index].reduce(0) { $0 + $1.utf16.count }
             let width = texts[index].utf16.count
@@ -1381,6 +1381,6 @@ public final class InputEngine {
         return walked.first { $0.start <= index && index < $0.end }
     }
 
-    /// 游標左邊那個字的位置
-    private var anchorIndex: Int { max(0, min(cursor - 1, elements.count - 1)) }
+    /// ↓ 要換的字：句中是游標右邊那個字（殼層在它底下畫底線，像方塊游標），句尾是最後一個字
+    private var anchorIndex: Int { cursor < elements.count ? cursor : max(0, elements.count - 1) }
 }
