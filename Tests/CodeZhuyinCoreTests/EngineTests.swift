@@ -109,6 +109,7 @@ private func type(_ engine: InputEngine, _ keys: String) {
 @Test func 詞內移動游標也看得見反白變化() {
     // 「你好」是同一個詞：先前反白框整個詞，游標在詞內移動時完全沒變化
     let engine = makeEngine()
+    engine.caretMarkEnabled = false  // 殼層實際的設定：不插記號，範圍才不會被記號推開
     type(engine, "su3cl3")
     let atEnd = engine.preedit().activeRangeUTF16
     _ = engine.handle(.arrowLeft)  // 你|好：標的是右邊的「好」，跟句尾一樣
