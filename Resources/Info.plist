@@ -43,7 +43,10 @@
 	<key>tsInputMethodCharacterRepertoireKey</key>
 	<array>
 		<string>Hant</string>
+		<string>Latn</string>
 	</array>
+	<key>TISIntendedLanguage</key>
+	<string>zh-Hant</string>
 	<key>tsInputMethodIconFileKey</key>
 	<string>MenuIcon.tiff</string>
 </dict>
