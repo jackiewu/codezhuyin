@@ -338,6 +338,30 @@ private func run(_ detector: inout ShiftTapDetector, _ events: [(ShiftTapDetecto
     }
 }
 
+@Test func 數字串中間打到聲調鍵_前面組出的字也換回數字() {
+    // 實際：56379 顯示成「值 379」。56＝ㄓˊ 值，3 是聲調鍵卻打在空音節上：整串是數字
+    let lexicon = Lexicon(dataText: """
+    # format org.openvanilla.mcbopomofo.sorted
+    ㄓˊ 值 -4.0
+    """)
+    let engine = InputEngine(lexicon: lexicon)
+    for key in "56379" { _ = engine.handle(.character(key)) }
+    #expect(engine.preedit().text == "56379")
+    #expect(engine.handle(.enter).commitText == "56379")
+}
+
+@Test func 數字提示顯示時Tab就選它_不被聯想詞搶走() {
+    let lexicon = Lexicon(dataText: """
+    # format org.openvanilla.mcbopomofo.sorted
+    ㄓˊ 值 -4.0
+    """)
+    let engine = InputEngine(lexicon: lexicon)
+    for key in "56" { _ = engine.handle(.character(key)) }  // 值（組得出字，所以要 Tab）
+    #expect(engine.englishHintView()?.items.first?.value == "56")
+    _ = engine.handle(.tab)
+    #expect(engine.handle(.enter).commitText == "56")
+}
+
 @Test func Enter不搶數字_打才不會變283() {
     // 「打」＝2ㄉ 8ㄚ 3ˇ，整串都是數字鍵。Enter 必須出中文，不能出 283
     let engine = InputEngine(lexicon: 測試詞庫)

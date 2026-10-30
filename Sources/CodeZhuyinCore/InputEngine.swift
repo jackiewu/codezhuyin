@@ -374,6 +374,17 @@ public final class InputEngine {
             openSheet()
             return .consumed
         case .tab:
+            // 跟畫面一致：提示窗（⇥ 數字／英文）顯示時 Tab 就是選它，聯想詞這時根本沒顯示
+            if let view = englishHintView(), let hint = view.items.first?.value {
+                if numberHint == hint {
+                    acceptNumber()
+                } else {
+                    composer.clear()
+                    cancelNumericRun()
+                    insertLiteral(hint)
+                }
+                return .consumed
+            }
             if !visibleAssociations.isEmpty {
                 associationArmed = true
                 return .consumed
@@ -753,6 +764,8 @@ public final class InputEngine {
                 trackNumeric(ch, composerWasEmpty: true)
                 insertLiteral(String(ch))
                 if !numericRaw.isEmpty { numericElements += 1 }
+                // 數字串中間打到聲調鍵（56＝值，再打 3）：前面那個字其實也是數字
+                if numericRunIsPureNumber { convertNumericRunToLiteral() }
                 return .consumed
             }
             cancelNumericRun()
