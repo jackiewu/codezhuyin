@@ -49,12 +49,23 @@ guard server != nil else {
     Log.general.error("IMKServer 建立失敗")
     exit(1)
 }
-Log.general.info("碼注音已啟動（connection: \(kConnectionName, privacy: .public)）")
+Log.general.notice("碼注音已啟動 v\(Updater.currentVersion, privacy: .public)（connection: \(kConnectionName, privacy: .public)）")
 
 // pkill（install.sh 熱更新）／登出送 SIGTERM：學習資料是延後寫檔的，結束前先存
-signal(SIGTERM, SIG_IGN)
+// 記下是誰送的 SIGTERM（使用者回報「常被切回 ABC」時，紀錄裡查得到兇手）：
+// sigaction 只存下 pid，名稱留給主執行緒的 DispatchSource 查
+var termSenderPID: pid_t = 0
+var termAction = sigaction()
+termAction.__sigaction_u.__sa_sigaction = { _, info, _ in
+    if let info { termSenderPID = info.pointee.si_pid }
+}
+termAction.sa_flags = SA_SIGINFO
+sigaction(SIGTERM, &termAction, nil)
 let terminationSource = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
 terminationSource.setEventHandler {
+    var path = [CChar](repeating: 0, count: 4096)
+    let sender = proc_pidpath(termSenderPID, &path, UInt32(path.count)) > 0 ? String(cString: path) : "未知"
+    Log.general.notice("碼注音收到 SIGTERM，送出者 pid \(termSenderPID, privacy: .public)：\(sender, privacy: .public)")
     CodeZhuyinInputController.userPhrases.flush()
     SmartInput.stop()  // 模型伺服器跟著關（萬一沒關到，外層 sh 也會在 2 秒內收掉）
     exit(0)
