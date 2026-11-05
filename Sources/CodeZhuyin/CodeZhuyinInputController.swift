@@ -79,6 +79,7 @@ class CodeZhuyinInputController: IMKInputController {
             ("操作說明…", #selector(showGuide(_:))),
             ("學習資料…", #selector(showLearnedData(_:))),
             ("偏好設定…", #selector(showPreferences(_:))),
+            ("複製切換紀錄", #selector(copySwitchLog(_:))),
         ] {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
             item.target = self
@@ -90,6 +91,12 @@ class CodeZhuyinInputController: IMKInputController {
     @objc private func toggleSimplified(_ sender: Any?) {
         let defaults = UserDefaults.standard
         defaults.set(!defaults.bool(forKey: SettingKey.simplifiedOutput), forKey: SettingKey.simplifiedOutput)
+    }
+
+    /// 追查被切回 ABC 用：把最近的切換紀錄放進剪貼簿
+    @objc private func copySwitchLog(_ sender: Any?) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(SwitchDiagnostics.recentText(), forType: .string)
     }
 
     @objc private func showGuide(_ sender: Any?) {
@@ -110,12 +117,14 @@ class CodeZhuyinInputController: IMKInputController {
     }
 
     override func activateServer(_ sender: Any!) {
+        SwitchDiagnostics.controller("啟用", client: sender)
         guard let client = sender as? IMKTextInput else { return }
         // 硬體鍵盤若非 US 配置（如 Dvorak），強制以 ABC 鍵位對應大千
         client.overrideKeyboard(withKeyboardNamed: "com.apple.keylayout.ABC")
     }
 
     override func deactivateServer(_ sender: Any!) {
+        SwitchDiagnostics.controller("停用", client: sender)
         commitComposition(sender)
         CandidatePanel.shared.dismiss(owner: self)
         ZhuyinBadge.shared.hide()

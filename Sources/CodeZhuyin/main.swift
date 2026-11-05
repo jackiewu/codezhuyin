@@ -51,6 +51,8 @@ guard server != nil else {
 }
 Log.general.notice("碼注音已啟動 v\(Updater.currentVersion, privacy: .public)（connection: \(kConnectionName, privacy: .public)）")
 
+SwitchDiagnostics.start()
+
 // pkill（install.sh 熱更新）／登出送 SIGTERM：學習資料是延後寫檔的，結束前先存
 // 記下是誰送的 SIGTERM（使用者回報「常被切回 ABC」時，紀錄裡查得到兇手）：
 // sigaction 只存下 pid，名稱留給主執行緒的 DispatchSource 查
