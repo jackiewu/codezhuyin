@@ -87,8 +87,8 @@ let 測試詞庫 = Lexicon(dataText: """
     var decoder = SentenceDecoder(lexicon: lexicon)
     decoder.scoreBonus = { _, value in value == "是" ? 7.0 : value == "測" ? 5.0 : 0 }
     #expect(decoder.walk([.reading("ㄘㄜˋ"), .reading("ㄕˋ")]).map(\.value) == ["測試"])
-    // 單獨一個音時，選過的字照樣排第一
+    // 單獨一個音時，選過的字照樣排第一（加分要大過跟第一名的差距）
     #expect(decoder.walk([.reading("ㄘㄜˋ")]).map(\.value) == ["測"])
-    decoder.scoreBonus = { _, value in value == "試" ? 2.0 : 0 }
+    decoder.scoreBonus = { _, value in value == "試" ? 4.0 : 0 }
     #expect(decoder.walk([.reading("ㄕˋ")]).map(\.value) == ["試"])
 }
