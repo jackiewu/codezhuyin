@@ -28,7 +28,7 @@ enum SwitchDiagnostics {
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
         ) { _ in
             // 換 app 本身不記；只有換完碼注音變得不能選時才記（灰掉的瞬間）
-            if !ownSourceState().selectable { record("切換 app 後碼注音不能選") }
+            if ownSourceState().selectable == false { record("切換 app 後碼注音不能選") }
         })
         record("啟動")
     }
