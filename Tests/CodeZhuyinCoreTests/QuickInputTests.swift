@@ -114,15 +114,16 @@ private func engineWithHabits() -> (InputEngine, UserPhraseStore) {
     type(engine, "su3cl3")  // 你好
     let view = engine.associationView()
     #expect(view?.items.map(\.value) == ["世界"])
-    #expect(view?.items.first?.label == "1")
+    #expect(view?.items.first?.label == "⇥")  // 還沒按 Tab：數字鍵是注音，不標數字
     #expect(view?.horizontal == true)
     #expect(view?.anchorUTF16 == 0)  // 對齊最後一個詞「你好」的開頭
     #expect(view?.highlightedInPage == -1)
     type(engine, "g")  // 打注音打到一半：提示維持，不閃
     #expect(engine.associationView()?.items.map(\.value) == ["世界"])
 
-    _ = engine.handle(.tab)  // 進入選擇：第一個反白
+    _ = engine.handle(.tab)  // 進入選擇：第一個反白，這時才標數字
     #expect(engine.associationView()?.highlightedInPage == 0)
+    #expect(engine.associationView()?.items.first?.label == "1")
     _ = engine.handle(.tab)  // 換掉打到一半的注音
     #expect(engine.preedit().text == "你好世界")
     #expect(engine.associationView()?.items.map(\.value) == ["是"])  // 接龍

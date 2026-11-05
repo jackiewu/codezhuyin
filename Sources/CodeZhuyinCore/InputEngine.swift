@@ -552,13 +552,16 @@ public final class InputEngine {
         )
     }
 
-    /// 聯想詞提示的呈現（橫排、標 1〜5；按了 Tab 第一個反白）
+    /// 聯想詞提示的呈現（橫排）。還沒按 Tab 時數字鍵是注音（1＝ㄅ），所以只在第一個標 ⇥；
+    /// 按了 Tab 進入選擇，第一個反白、才標 1〜5
     public func associationView() -> SheetView? {
         let shown = visibleAssociations
         let completion = visibleCompletion
         guard !shown.isEmpty || completion != nil else { return nil }
         var items = shown.enumerated().map {
-            SheetView.Item(label: "\($0.offset + 1)", value: outputTransform?($0.element) ?? $0.element)
+            SheetView.Item(
+                label: associationArmed ? "\($0.offset + 1)" : ($0.offset == 0 ? "⇥" : ""),
+                value: outputTransform?($0.element) ?? $0.element)
         }
         if let completion {
             items.insert(SheetView.Item(label: "✨→", value: outputTransform?(completion) ?? completion), at: 0)
