@@ -420,8 +420,28 @@ public final class InputEngine {
             userPhrases?.noteCommit(walked.map(\.value))
         }
         let text = committedText()
+        let keys = typedKeys
         reset()
+        lastCommit = text.isEmpty ? nil : (text, keys)
         return text.isEmpty ? nil : text
+    }
+
+    /// 最近一次上屏的文字和當初按的鍵。殼層在使用者馬上按 Shift 時，用它把剛上屏的中文換回英文
+    public private(set) var lastCommit: (text: String, keys: String)?
+
+    /// 組字區當初按的鍵（英文原樣）：詞與詞之間的空白保留，尾端的空白（一聲／選字）去掉
+    private var typedKeys: String {
+        var keys = (elementKeys.joined() + composer.rawKeys)
+        while keys.last == " " { keys.removeLast() }
+        return keys
+    }
+
+    /// Shift 單擊切英文時用：組字區不轉中文，照按的鍵原樣送出（打了 readme 才發現是英文）
+    public func flushAsKeys() -> String? {
+        let keys = typedKeys
+        reset()
+        lastCommit = nil
+        return keys.isEmpty ? nil : keys
     }
 
     /// 自動造詞：上屏時，把「連續被改字（pin）的單字串」回報為造詞候補。

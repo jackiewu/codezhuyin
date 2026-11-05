@@ -12,6 +12,8 @@ class CodeZhuyinInputController: IMKInputController {
     private static var chineseMode = true
     private static var terminalChineseMode = false
     private static var savedChineseMode: Bool?
+    /// 剛上屏的中文：馬上按 Shift 就換回當初按的鍵（英文）。只在游標沒動、5 秒內有效
+    private static var undoableCommit: (text: String, keys: String, end: Int, at: Date)?
     /// 目前打字的是不是終端機（「終端機預設英文」開著才算）
     private static var inTerminal = false
     private static let terminalBundleIDs: Set<String> = [
@@ -177,6 +179,7 @@ class CodeZhuyinInputController: IMKInputController {
             return false  // 修飾鍵事件永遠放行
         }
         guard event.type == .keyDown else { return false }
+        Self.undoableCommit = nil  // 上屏後又按了別的鍵：不能再用 Shift 換回英文
         Self.shiftDetector.noteKeyDown()
         Self.optionDetector.noteKeyDown()
 
@@ -243,6 +246,7 @@ class CodeZhuyinInputController: IMKInputController {
         let output = engine.handle(key)
         if let commit = output.commitText {
             client.insertText(commit, replacementRange: kNoRange)
+            rememberUndoableCommit(commit, engine: engine, client: client)
         }
         syncUI(engine, client: client)
         // 英文段裡打注音被自動切回：閃「中」，跟 Shift 單擊一樣有回饋
@@ -401,16 +405,45 @@ class CodeZhuyinInputController: IMKInputController {
             return
         }
 
+        // 剛上屏的中文其實是英文：Shift 一下換回當初按的鍵，並切成英文
+        if Self.chineseMode, revertLastCommit(client) {
+            Self.chineseMode = false
+            ModeHUD.shared.flash(chinese: false, near: caretLineRect(client))
+            return
+        }
+
         Self.chineseMode.toggle()
         Log.general.info("切換模式：\(Self.chineseMode ? "中文" : "英文", privacy: .public)")
         if !Self.chineseMode, let engine {
-            // 切到英文前先把組字區上屏
-            if let text = engine.flush() {
-                client.insertText(text, replacementRange: kNoRange)
+            // 組字中按 Shift＝剛剛打的其實是英文：照按的鍵原樣送出，不轉中文
+            if let keys = engine.flushAsKeys() {
+                client.insertText(keys, replacementRange: kNoRange)
             }
             syncUI(engine, client: client)
         }
         ModeHUD.shared.flash(chinese: Self.chineseMode, near: caretLineRect(client))
+    }
+
+    /// 記下剛上屏的中文和它的按鍵、上屏後的游標位置（app 回報不出游標就不記，免得換錯地方）
+    private func rememberUndoableCommit(_ commit: String, engine: InputEngine, client: IMKTextInput) {
+        guard let last = engine.lastCommit, last.text == commit, last.keys != commit,
+              commit.unicodeScalars.contains(where: { $0.properties.isIdeographic }) else { return }
+        let end = client.selectedRange().location
+        guard end != NSNotFound, end >= commit.utf16.count else { return }
+        Self.undoableCommit = (commit, last.keys, end, Date())
+    }
+
+    /// 把剛上屏的中文換回按鍵。游標動過、超過 5 秒、或組字中都不換
+    private func revertLastCommit(_ client: IMKTextInput) -> Bool {
+        guard let undo = Self.undoableCommit else { return false }
+        Self.undoableCommit = nil
+        guard engine?.isIdle != false, Date().timeIntervalSince(undo.at) < 5,
+              client.selectedRange().location == undo.end, client.selectedRange().length == 0
+        else { return false }
+        let length = undo.text.utf16.count
+        client.insertText(undo.keys, replacementRange: NSRange(location: undo.end - length, length: length))
+        Log.general.info("上屏的中文換回英文")
+        return true
     }
 
     // MARK: - 語音輸入
