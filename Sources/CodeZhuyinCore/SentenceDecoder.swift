@@ -218,14 +218,23 @@ public struct SentenceDecoder {
         guard let reading = joinedReading(elements, start: start, end: end) else { return [] }
         let unigrams = allUnigrams(reading)
         if !unigrams.isEmpty {
+            // 單音節的選字加分只用來在同音字之間排先後，最多讓它剛好當上這個音的第一名，
+            // 不能把詞拆散：「是」選過幾十次，加分會大到「測」＋「是」贏過詞庫的「測試」
+            let top = length == 1 ? unigrams.map(\.score).max() : nil
+            func walkScore(_ unigram: Unigram) -> Double {
+                let full = adjusted(unigram, reading: reading)
+                guard let top else { return full }
+                let bonus = full - unigram.score
+                return min(full, max(unigram.score, top + 0.01 * bonus))
+            }
             // 取前 K 名進詞圖：只留第一名的話，詞對加分沒有可選的對象
             let ranked = unigrams
-                .sorted { adjusted($0, reading: reading) > adjusted($1, reading: reading) }
+                .sorted { walkScore($0) > walkScore($1) }
                 .prefix(max(1, candidateDepth))
             return ranked.map { unigram in
                 Node(
                     segment: DecodedSegment(start: start, length: length, value: unigram.value, reading: reading),
-                    score: adjusted(unigram, reading: reading)
+                    score: walkScore(unigram)
                 )
             }
         }

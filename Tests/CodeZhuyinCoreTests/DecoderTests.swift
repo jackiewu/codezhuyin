@@ -73,3 +73,22 @@ let 測試詞庫 = Lexicon(dataText: """
     let other = DecodedSegment(start: 0, length: 1, value: "思", reading: "ㄙ")
     #expect(decoder.walk([.reading("ㄙ"), .reading("ㄧㄠˋ")], pins: [other]).map(\.value) == ["思", "要"])
 }
+
+@Test func 單字選過很多次_不會把詞拆散() {
+    // 「是」「測」都被選過很多次：仍然組出詞庫的「測試」，不是「測是」
+    let lexicon = Lexicon(dataText: """
+    # format org.openvanilla.mcbopomofo.sorted
+    ㄘㄜˋ 策 -8.15
+    ㄘㄜˋ 測 -8.56
+    ㄕˋ 是 -4.56
+    ㄕˋ 試 -8.06
+    ㄘㄜˋ-ㄕˋ 測試 -10.2
+    """)
+    var decoder = SentenceDecoder(lexicon: lexicon)
+    decoder.scoreBonus = { _, value in value == "是" ? 7.0 : value == "測" ? 5.0 : 0 }
+    #expect(decoder.walk([.reading("ㄘㄜˋ"), .reading("ㄕˋ")]).map(\.value) == ["測試"])
+    // 單獨一個音時，選過的字照樣排第一
+    #expect(decoder.walk([.reading("ㄘㄜˋ")]).map(\.value) == ["測"])
+    decoder.scoreBonus = { _, value in value == "試" ? 2.0 : 0 }
+    #expect(decoder.walk([.reading("ㄕˋ")]).map(\.value) == ["試"])
+}
