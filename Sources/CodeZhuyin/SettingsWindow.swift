@@ -13,6 +13,7 @@ enum SettingKey {
     static let caretMark = "caretBar"  // 句中插入點：游標右邊的字畫主色底線（關＝只靠 app 的游標）。舊鍵 caretMark 預設關，改名讓預設開
     static let rawKeysPreedit = "rawKeysPreedit"  // 組字區顯示按鍵、注音標在下面
     static let catGuard = "catGuard"  // 貓貓模式：偵測亂按就鎖住輸入
+    static let terminalEnglish = "terminalEnglish"  // 終端機（Terminal、iTerm2…）預設英文、不自動切回中文
     static let appearance = "appearance"  // system／light／dark
     static let accent = "accent"  // Theme.Accent
     static let autoSpacing = "autoSpacing"
@@ -36,6 +37,7 @@ enum SettingKey {
             caretMark: true,
             rawKeysPreedit: true,
             catGuard: true,
+            terminalEnglish: true,
             appearance: "system",
             accent: "indigo",
             autoSpacing: true,
@@ -375,6 +377,7 @@ private struct SettingsView: View {
     @AppStorage(SettingKey.caretMark) private var caretMark = true
     @AppStorage(SettingKey.rawKeysPreedit) private var rawKeysPreedit = true
     @AppStorage(SettingKey.catGuard) private var catGuard = true
+    @AppStorage(SettingKey.terminalEnglish) private var terminalEnglish = true
     @AppStorage(SettingKey.appearance) private var appearance = "system"
     @AppStorage(SettingKey.accent) private var accent = "indigo"
     @AppStorage(SettingKey.autoSpacing) private var autoSpacing = true
@@ -560,7 +563,12 @@ private struct SettingsView: View {
                     indent: true, isOn: $spaceCommitsEnglish
                 )
                 ToggleRow(title: "中英之間自動加空白", detail: "我愛 mac：漢字與英數字相鄰處補一個空格。", isOn: $autoSpacing)
-                ToggleRow(title: "Shift 單擊切換中／英", detail: "Shift＋字母永遠直接輸出英文字母。", last: true, isOn: $shiftToggle)
+                ToggleRow(title: "Shift 單擊切換中／英", detail: "Shift＋字母永遠直接輸出英文字母。", isOn: $shiftToggle)
+                ToggleRow(
+                    title: "終端機預設英文",
+                    detail: "切到 Terminal、iTerm2、Warp、Ghostty 等終端機時自動變英文，而且不會因為指令像注音就自己切回中文。要打中文按 Shift，終端機會記住各自的模式。",
+                    last: true, isOn: $terminalEnglish
+                )
             }
             SectionTitle(text: "保護")
             Card {

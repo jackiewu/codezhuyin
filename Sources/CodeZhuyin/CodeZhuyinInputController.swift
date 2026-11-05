@@ -8,8 +8,17 @@ import CodeZhuyinCore
 @objc(CodeZhuyinInputController)
 class CodeZhuyinInputController: IMKInputController {
 
-    /// 中／英模式是整個輸入法共享的（跨應用程式一致）
+    /// 中／英模式是整個輸入法共享的（跨應用程式一致）；終端機另外記一份（預設英文）
     private static var chineseMode = true
+    private static var terminalChineseMode = false
+    private static var savedChineseMode: Bool?
+    /// 目前打字的是不是終端機（「終端機預設英文」開著才算）
+    private static var inTerminal = false
+    private static let terminalBundleIDs: Set<String> = [
+        "com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp-Stable", "dev.warp.Warp",
+        "com.mitchellh.ghostty", "net.kovidgoyal.kitty", "io.alacritty", "org.alacritty",
+        "com.github.wez.wezterm", "co.zeit.hyper", "org.tabby",
+    ]
     private static var shiftDetector = ShiftTapDetector()
     /// 右 Option 單擊＝語音輸入。偵測器只看 keyCode，借用 Shift 單擊同一台狀態機
     private static var optionDetector = ShiftTapDetector()
@@ -119,8 +128,25 @@ class CodeZhuyinInputController: IMKInputController {
     override func activateServer(_ sender: Any!) {
         SwitchDiagnostics.controller("啟用", client: sender)
         guard let client = sender as? IMKTextInput else { return }
+        enterApp(client.bundleIdentifier())
         // 硬體鍵盤若非 US 配置（如 Dvorak），強制以 ABC 鍵位對應大千
         client.overrideKeyboard(withKeyboardNamed: "com.apple.keylayout.ABC")
+    }
+
+    /// 進出終端機時換成各自的中英模式：進終端機記下原本的模式、換成終端機那份，出來再換回去
+    private func enterApp(_ bundleID: String?) {
+        let terminal = UserDefaults.standard.bool(forKey: SettingKey.terminalEnglish)
+            && bundleID.map(Self.terminalBundleIDs.contains) == true
+        guard terminal != Self.inTerminal else { return }
+        if terminal {
+            Self.savedChineseMode = Self.chineseMode
+            Self.chineseMode = Self.terminalChineseMode
+        } else {
+            Self.terminalChineseMode = Self.chineseMode
+            Self.chineseMode = Self.savedChineseMode ?? true
+        }
+        Self.inTerminal = terminal
+        Self.chineseDetector.reset()
     }
 
     override func deactivateServer(_ sender: Any!) {
@@ -245,7 +271,8 @@ class CodeZhuyinInputController: IMKInputController {
     /// 英文模式的旁路觀察：放行並偵測。觸發時把已放行的注音字母收回、原地重組成中文。
     /// 回傳 true 表示這個按鍵被吃掉（觸發鍵不再進文件）。
     private func observeEnglishModeTyping(_ event: NSEvent, client: IMKTextInput) -> Bool {
-        guard UserDefaults.standard.bool(forKey: SettingKey.englishHint),
+        // 終端機裡的指令（ls、cd、git）很像注音，不自動切回中文
+        guard !Self.inTerminal, UserDefaults.standard.bool(forKey: SettingKey.englishHint),
               event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
               let chars = event.characters, chars.count == 1, let ch = chars.first,
               ch.isASCII, !ch.isNewline, ch == " " || ch.isLetter || ch.isNumber || ch.isPunctuation || ch.isSymbol
