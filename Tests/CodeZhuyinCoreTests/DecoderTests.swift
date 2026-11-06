@@ -107,6 +107,7 @@ let 測試詞庫 = Lexicon(dataText: """
     ㄕˋ-ㄕˋ-ㄎㄢˋ 試試看 -11.62
     """)
     let engine = InputEngine(lexicon: lexicon)
+    engine.caretMarkEnabled = false
     for key in "y94g4g4d04" { _ = engine.handle(.character(key)) }
     #expect(engine.preedit().text == "在試試看")
     for _ in 0..<4 { _ = engine.handle(.arrowLeft) }

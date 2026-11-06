@@ -178,7 +178,7 @@ private func type(_ engine: InputEngine, _ keys: String) {
     #expect(items.prefix(2) == ["世界", "界"])  // 整個詞之後緊接著游標左邊那個字
     _ = engine.handle(.character("2"))
     #expect(engine.sheetView() == nil)
-    #expect(engine.preedit().text == "是界")  // 拆開後「是」自己重走
+    #expect(engine.preedit().text == "世界")  // 只換選到的字：沒選到的「世」維持原樣，不重組成「是」
 }
 
 @Test func 關掉插入記號時改用游標位置() {
