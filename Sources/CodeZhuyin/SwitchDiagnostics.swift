@@ -45,12 +45,24 @@ enum SwitchDiagnostics {
     private static var forcedSourceID: String?
     private static var forcedSince = Date()
     private static var recoveryTimer: Timer?
+    /// 切回後幾秒內又被系統換回 ABC（它會把文件記得的 ABC 還原回去）：再切一次，最多 3 次
+    private static var reassertUntil = Date.distantPast
+    private static var reassertCount = 0
 
     private static func watchForcedSwitch() {
         let current = currentSourceID()
         defer { previousSourceID = current }
         if isOwn(current) || (forcedSourceID != nil && current != forcedSourceID) {
             stopRecovery()
+            return
+        }
+        if isOwn(previousSourceID), !IsSecureEventInputEnabled(), Date() < reassertUntil, reassertCount < 3 {
+            reassertCount += 1
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                guard currentSourceID() == current, !IsSecureEventInputEnabled(), let own = ownSource() else { return }
+                let status = TISSelectInputSource(own)
+                record(status == noErr ? "切回後又被換成 ABC，再切回碼注音" : "再切回失敗：\(status)")
+            }
             return
         }
         guard isOwn(previousSourceID), IsSecureEventInputEnabled(), recoveryTimer == nil else { return }
@@ -69,6 +81,8 @@ enum SwitchDiagnostics {
         stopRecovery()
         let status = TISSelectInputSource(own)
         record(status == noErr ? "安全輸入結束，自動切回碼注音" : "自動切回失敗：\(status)")
+        reassertUntil = Date().addingTimeInterval(5)
+        reassertCount = 0
     }
 
     private static func stopRecovery() {
