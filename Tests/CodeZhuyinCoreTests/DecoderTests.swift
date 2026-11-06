@@ -92,3 +92,29 @@ let 測試詞庫 = Lexicon(dataText: """
     decoder.scoreBonus = { _, value in value == "試" ? 4.0 : 0 }
     #expect(decoder.walk([.reading("ㄕˋ")]).map(\.value) == ["試"])
 }
+
+@Test func 選字只換選到的字_被切到的詞其餘的字不變() {
+    // 在試試看 → 選「再試」：剩下的「試看」維持原樣，不被重組成「是看」
+    let lexicon = Lexicon(dataText: """
+    # format org.openvanilla.mcbopomofo.sorted
+    ㄗㄞˋ 在 -5.02
+    ㄗㄞˋ 再 -7.12
+    ㄕˋ 是 -4.56
+    ㄕˋ 試 -8.06
+    ㄎㄢˋ 看 -6.37
+    ㄗㄞˋ-ㄕˋ 在世 -11.54
+    ㄗㄞˋ-ㄕˋ 再試 -13.48
+    ㄕˋ-ㄕˋ-ㄎㄢˋ 試試看 -11.62
+    """)
+    let engine = InputEngine(lexicon: lexicon)
+    for key in "y94g4g4d04" { _ = engine.handle(.character(key)) }
+    #expect(engine.preedit().text == "在試試看")
+    for _ in 0..<4 { _ = engine.handle(.arrowLeft) }
+    _ = engine.handle(.arrowDown)
+    guard let index = engine.sheetView()?.items.firstIndex(where: { $0.value == "再試" }) else {
+        Issue.record("候選窗裡找不到「再試」")
+        return
+    }
+    _ = engine.handle(.character(Character("\(index + 1)")))
+    #expect(engine.preedit().text == "再試試看")
+}

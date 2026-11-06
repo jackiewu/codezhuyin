@@ -66,6 +66,8 @@ public final class InputEngine {
     private var elementKeys: [String] = []
     private var cursor = 0  // 元素邊界位置 0...elements.count
     private var pins: [DecodedSegment] = []
+    /// 選字時順帶保住的字（選「再試」時，原本「試試看」剩下的「試看」）：照樣當 pin 走，但不算使用者改的字、不學習
+    private var keptPins: [DecodedSegment] = []
     private var composer = SyllableComposer()
     private var walked: [DecodedSegment] = []
 
@@ -460,11 +462,11 @@ public final class InputEngine {
         for segment in walked {
             let isPinned = pins.contains {
                 $0.start == segment.start && $0.length == segment.length && $0.value == segment.value
-            }
+            } && !keptPins.contains(segment)
             // 詞以使用者選的字開頭（選了「私」，組出「私鑰」）＝使用者確認了這個詞，給它加分；
             // 否則下次單字「私」的選字加分反而讓「私要」贏過「私鑰」
             if segment.length > 1, let reading = segment.reading,
-               pins.contains(where: { $0.start == segment.start && $0.length < segment.length }) {
+               pins.contains(where: { $0.start == segment.start && $0.length < segment.length && !keptPins.contains($0) }) {
                 store.bump(reading: reading, value: segment.value)
             }
             if segment.length == 1, segment.reading != nil, isPinned {
@@ -1285,8 +1287,28 @@ public final class InputEngine {
     }
 
     private func select(_ segment: DecodedSegment) {
+        // 只換使用者選的那幾個字：被選字切到的詞，沒選到的部分維持畫面上原本的字。
+        // 否則選了「再試」，原本「試試看」剩下的「試看」會被重組成「是看」，又要再選一次
+        var kept: [DecodedSegment] = []
+        for old in walked where old.start < segment.end && segment.start < old.end
+            && (old.start < segment.start || old.end > segment.end) {
+            guard let reading = old.reading else { continue }
+            let syllables = reading.split(separator: "-").map(String.init)
+            let chars = Array(old.value)
+            guard syllables.count == old.length, chars.count == old.length else { continue }
+            func piece(_ from: Int, _ to: Int) -> DecodedSegment {
+                DecodedSegment(
+                    start: from, length: to - from,
+                    value: String(chars[(from - old.start)..<(to - old.start)]),
+                    reading: syllables[(from - old.start)..<(to - old.start)].joined(separator: "-"))
+            }
+            if old.start < segment.start { kept.append(piece(old.start, segment.start)) }
+            if old.end > segment.end { kept.append(piece(segment.end, old.end)) }
+        }
         pins.removeAll { $0.start < segment.end && segment.start < $0.end }
         pins.append(segment)
+        pins += kept
+        keptPins = keptPins.filter { pins.contains($0) } + kept
         if let reading = segment.reading, !DateMacro.forms(for: reading).contains(segment.value) {
             userPhrases?.bump(reading: reading, value: segment.value)
         }
@@ -1354,6 +1376,7 @@ public final class InputEngine {
         elementKeys = []
         cursor = 0
         pins = []
+        keptPins = []
         walked = []
         composer.clear()
         sheet = nil
