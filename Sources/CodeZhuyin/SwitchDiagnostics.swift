@@ -22,7 +22,10 @@ enum SwitchDiagnostics {
         ] {
             observers.append(center.addObserver(
                 forName: Notification.Name(name), object: nil, queue: .main
-            ) { _ in record(label) })
+            ) { _ in
+                record(label)
+                if label == "切換輸入法" { watchForcedSwitch() }
+            })
         }
         observers.append(NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
@@ -31,6 +34,52 @@ enum SwitchDiagnostics {
             if ownSourceState().selectable == false { record("切換 app 後碼注音不能選") }
         })
         record("啟動")
+        previousSourceID = currentSourceID()
+    }
+
+    // MARK: - 安全輸入結束後自動切回
+
+    /// 系統因為安全輸入（密碼欄位、Touch ID 視窗）把碼注音換成 ABC 時，等安全輸入結束就自己切回來，
+    /// 不用一直按 Ctrl+Space。使用者自己換成別的輸入法就不管
+    private static var previousSourceID = ""
+    private static var forcedSourceID: String?
+    private static var forcedSince = Date()
+    private static var recoveryTimer: Timer?
+
+    private static func watchForcedSwitch() {
+        let current = currentSourceID()
+        defer { previousSourceID = current }
+        if isOwn(current) || (forcedSourceID != nil && current != forcedSourceID) {
+            stopRecovery()
+            return
+        }
+        guard isOwn(previousSourceID), IsSecureEventInputEnabled(), recoveryTimer == nil else { return }
+        forcedSourceID = current
+        forcedSince = Date()
+        record("被安全輸入切走，等它結束後切回碼注音")
+        recoveryTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in checkRecovery() }
+    }
+
+    private static func checkRecovery() {
+        guard currentSourceID() == forcedSourceID, Date().timeIntervalSince(forcedSince) < 3600 else {
+            stopRecovery()
+            return
+        }
+        guard !IsSecureEventInputEnabled(), let own = ownSource() else { return }
+        stopRecovery()
+        let status = TISSelectInputSource(own)
+        record(status == noErr ? "安全輸入結束，自動切回碼注音" : "自動切回失敗：\(status)")
+    }
+
+    private static func stopRecovery() {
+        recoveryTimer?.invalidate()
+        recoveryTimer = nil
+        forcedSourceID = nil
+    }
+
+    private static func isOwn(_ id: String) -> Bool {
+        guard let bundleID = Bundle.main.bundleIdentifier else { return false }
+        return id.hasPrefix(bundleID)
     }
 
     /// 輸入法控制器的啟用／停用（client 是哪個 app）
@@ -66,6 +115,11 @@ enum SwitchDiagnostics {
     private static func currentSourceID() -> String {
         guard let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue() else { return "?" }
         return stringProperty(source, kTISPropertyInputSourceID) ?? "?"
+    }
+
+    private static func ownSource() -> TISInputSource? {
+        guard let list = TISCreateInputSourceList(nil, false)?.takeRetainedValue() as? [TISInputSource] else { return nil }
+        return list.first { isOwn(stringProperty($0, kTISPropertyInputSourceID) ?? "") }
     }
 
     private static func ownSourceState() -> (selectable: Bool?, enabled: Bool?, ascii: Bool?) {
