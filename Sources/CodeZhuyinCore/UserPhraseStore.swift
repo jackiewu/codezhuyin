@@ -47,15 +47,15 @@ public final class UserPhraseStore {
 
     // MARK: - 自動造詞
 
-    /// 上屏時回報一段「被改字的連續單字串」；出現第二次即升格為使用者詞
-    public func noteWordCandidate(reading: String, value: String) {
+    /// 上屏時回報一段「被改字的連續字串」；出現第二次即升格為使用者詞（immediately：這次就升格）
+    public func noteWordCandidate(reading: String, value: String, immediately: Bool = false) {
         if data.words[reading]?[value] != nil {
             data.words[reading]![value]! += 1  // 已是使用者詞：記次數即可
             save()
             return
         }
         let count = (data.pendingWords[reading]?[value] ?? 0) + 1
-        if count >= promotionThreshold {
+        if count >= promotionThreshold || immediately {
             data.pendingWords[reading]?[value] = nil
             data.words[reading, default: [:]][value] = count
         } else {

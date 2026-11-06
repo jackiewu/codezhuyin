@@ -119,3 +119,37 @@ let 測試詞庫 = Lexicon(dataText: """
     _ = engine.handle(.character(Character("\(index + 1)")))
     #expect(engine.preedit().text == "再試試看")
 }
+
+@Test func 選過詞改好的整句_下次打到一半補字也不會被改回() {
+    // 改成「再試試看」上屏一次後，下次打到「再試試」再補「看」，前面不會被改回「在」
+    let lexicon = Lexicon(dataText: """
+    # format org.openvanilla.mcbopomofo.sorted
+    ㄗㄞˋ 在 -5.02
+    ㄗㄞˋ 再 -7.12
+    ㄕˋ 是 -4.56
+    ㄕˋ 試 -8.06
+    ㄎㄢˋ 看 -6.37
+    ㄗㄞˋ-ㄕˋ 在世 -11.54
+    ㄗㄞˋ-ㄕˋ 再試 -13.48
+    ㄕˋ-ㄕˋ-ㄎㄢˋ 試試看 -11.62
+    """)
+    let store = UserPhraseStore(fileURL: nil)
+    let first = InputEngine(lexicon: lexicon)
+    first.userPhrases = store
+    first.caretMarkEnabled = false
+    for key in "y94g4g4d04" { _ = first.handle(.character(key)) }
+    for _ in 0..<4 { _ = first.handle(.arrowLeft) }
+    _ = first.handle(.arrowDown)
+    guard let index = first.sheetView()?.items.firstIndex(where: { $0.value == "再試" }) else {
+        Issue.record("候選窗裡找不到「再試」")
+        return
+    }
+    _ = first.handle(.character(Character("\(index + 1)")))
+    #expect(first.handle(.enter).commitText == "再試試看")
+
+    let second = InputEngine(lexicon: lexicon)
+    second.userPhrases = store
+    second.caretMarkEnabled = false
+    for key in "y94g4g4d04" { _ = second.handle(.character(key)) }
+    #expect(second.preedit().text == "再試試看")
+}

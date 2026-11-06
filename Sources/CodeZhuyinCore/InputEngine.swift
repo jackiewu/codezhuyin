@@ -430,26 +430,32 @@ public final class InputEngine {
     /// 連續兩次上屏同一串，就升格為使用者詞（UserPhraseStore 負責門檻）。
     private func learnPinnedWords() {
         guard let store = userPhrases else { return }
+        // 連在一起的「使用者定下來的段」（選的字、選的詞、選字時保住的字）湊成造詞候補。
+        // 只靠保住的字不算（使用者沒改東西）；有選整個詞的（再試＋保住的試看）直接升格，
+        // 不然下次打「再試試看」又被重組成「在試試看」
         var run: [DecodedSegment] = []
         func closeRun() {
             defer { run = [] }
-            guard (2...6).contains(run.count) else { return }
+            let syllables = run.reduce(0) { $0 + $1.length }
+            guard run.count >= 2, (2...6).contains(syllables),
+                  run.contains(where: { !keptPins.contains($0) }) else { return }
             store.noteWordCandidate(
                 reading: run.compactMap(\.reading).joined(separator: "-"),
-                value: run.map(\.value).joined()
+                value: run.map(\.value).joined(),
+                immediately: run.contains { $0.length > 1 }
             )
         }
         for segment in walked {
             let isPinned = pins.contains {
                 $0.start == segment.start && $0.length == segment.length && $0.value == segment.value
-            } && !keptPins.contains(segment)
+            }
             // 詞以使用者選的字開頭（選了「私」，組出「私鑰」）＝使用者確認了這個詞，給它加分；
             // 否則下次單字「私」的選字加分反而讓「私要」贏過「私鑰」
             if segment.length > 1, let reading = segment.reading,
                pins.contains(where: { $0.start == segment.start && $0.length < segment.length && !keptPins.contains($0) }) {
                 store.bump(reading: reading, value: segment.value)
             }
-            if segment.length == 1, segment.reading != nil, isPinned {
+            if segment.reading != nil, isPinned {
                 run.append(segment)
             } else {
                 closeRun()
