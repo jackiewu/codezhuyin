@@ -729,9 +729,9 @@ public final class InputEngine {
                 return .consumed
             }
             let output = acceptEnglish(hint, then: String(ch))
-            // 英文後面的 . / -（llama.cpp、src/app、foo-bar）：後面多半還是英數，進英文接續段；
+            // 英文後面的 . / - ,（llama.cpp、src/app、foo-bar、code,name）：後面多半還是英數，進英文接續段；
             // 打回注音（兩個帶聲調的音節）會自動切回中文
-            if "./-".contains(ch) { isInLiteralRun = true }
+            if "./-,".contains(ch) { isInLiteralRun = true }
             return output
         }
         // 加上這個鍵就組不出任何字（jy. ＝ ㄗㄨㄡ，任何聲調都不存在）：前面是英文，. 照打。
@@ -858,7 +858,9 @@ public final class InputEngine {
                     || (cut == 2 && TechWords.twoLetter.contains(prefix.lowercased())) else { continue }
             var rest = SyllableComposer()
             let tail = chars[cut...]
-            guard tail.allSatisfy({ rest.press($0) == .absorbed }), rest.overwriteCount == 0,
+            // 尾巴只有一個標點鍵（code, 的 , ＝ㄝ）不算注音：那是英文後面的標點，不是要打「欸」
+            guard tail.contains(where: { $0.isLetter || $0.isNumber }),
+                  tail.allSatisfy({ rest.press($0) == .absorbed }), rest.overwriteCount == 0,
                   syllableExists(rest.syllable) else { continue }
             return (prefix, String(tail))
         }

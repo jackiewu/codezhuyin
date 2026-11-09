@@ -166,3 +166,11 @@ private let 指令詞典 = EnglishDetector(words: ["brew", "install", "llama", "
     #expect(engine.handle(.character("_")) == .consumed)
     #expect(engine.preedit().text.hasPrefix("config_"))
 }
+
+@Test func 英文後的逗號照打並接續英文() {
+    // select code,name,apiversion：逗號不是ㄝ，後面的 name 也不該變注音
+    let engine = InputEngine(lexicon: 測試詞庫)
+    engine.englishDetector = EnglishDetector(words: ["select", "code", "name"])
+    type(engine, "select code,name,apiversion ")
+    #expect(engine.preedit().text == "select code,name,apiversion ")
+}
