@@ -727,3 +727,10 @@ private let 都的詞庫 = Lexicon(dataText: """
     #expect(engine.preedit().text == "ㄋㄧ")
     #expect(engine.composingBadge == nil)
 }
+
+@Test func 英文模式打數字不誤觸() {
+    // Aa123456：56＝ㄓˊ（值）查得到也不能切回中文，全是數字鍵的音節不算注音
+    var detector = ChineseTypingDetector { ["ㄓˊ", "ㄉㄚˇ"].contains($0) }
+    #expect(feedAll(&detector, "aa123456") == nil)
+    #expect(feedAll(&detector, "283") == nil)
+}

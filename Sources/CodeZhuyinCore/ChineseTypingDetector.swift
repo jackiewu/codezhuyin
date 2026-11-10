@@ -36,7 +36,9 @@ public struct ChineseTypingDetector: Sendable {
             // 例外：空白收尾（一聲）又有覆寫＝英文單字＋空白（google、test、ok…
             // 常見英文詞一半會這樣湊出查得到的一聲音節），不算，否則會連前一個英文字一起收回
             let wordThenSpace = syllable.tone == .tone1 && overwritesBefore > 0
-            guard !wordThenSpace, isKnownReading(syllable.canonical) else {
+            // 整個音節都是數字鍵（56＝ㄓˊ、283＝ㄉㄚˇ）：英文模式下打的是數字（密碼 Aa123456、版號），不是注音
+            let allDigits = pendingKeys.allSatisfy { $0.isNumber || $0 == " " }
+            guard !wordThenSpace, !allDigits, isKnownReading(syllable.canonical) else {
                 resetStreak()
                 return nil
             }
