@@ -25,8 +25,6 @@ class CodeZhuyinInputController: IMKInputController {
     /// 貓貓模式：貓踩鍵盤就鎖住輸入
     private static var catDetector = CatPawDetector()
     private static var catUnlockWork: DispatchWorkItem?
-    /// 大寫燈亮著卻在打注音：當它沒亮，直到使用者自己切換大寫才恢復
-    private static var capsLockOverridden = false
     /// 使用者選字學習：全行程共用一份（main.swift 結束前要 flush）
     static let userPhrases = UserPhraseStore(
         fileURL: FileManager.default
@@ -215,12 +213,6 @@ class CodeZhuyinInputController: IMKInputController {
         }
         guard let engine = ensureEngine() else { return false }  // 詞庫載入前放行
 
-        // Caps Lock 亮：英數直通。但仍觀察按鍵流——大寫燈很容易誤觸，
-        // 發現在打注音就當它沒亮（收回字母重組），直到使用者自己切換大寫。
-        if event.modifierFlags.contains(.capsLock), !Self.capsLockOverridden {
-            flushBeforePassthrough(engine, client: client)
-            return englishPassthrough(event, client: client)
-        }
 
         // cmd／ctrl／opt 快捷鍵：先把組字區上屏，再放行給應用程式
         if !event.modifierFlags.intersection([.command, .control, .option]).isEmpty {
@@ -262,24 +254,12 @@ class CodeZhuyinInputController: IMKInputController {
 
     /// Shift 單擊切換中英。flagsChanged 在 NSMenu／開存檔對話框中收不到（平台限制）。
     private func handleFlagsChanged(_ event: NSEvent, client: IMKTextInput) {
-        // Caps Lock 切換：亮＝英數直通模式（比照內建注音的習慣）
-        // 每按一次都切到「另一個」模式，不管目前的英文是 Caps Lock 還是 Shift 切出來的：
-        // Shift 切成英文後按 Caps Lock（燈亮）＝回中文（當燈沒亮），再按（燈滅）＝英文。
+        // Caps Lock（中/英鍵）每按一次就切到另一個模式，跟 Shift 單擊一樣。
+        // 中英只看 chineseMode 這一個狀態、不看燈：燈跟模式對不起來時（碼注音重啟、
+        // 在別的輸入法按過大寫），選單寫「中文」卻打不出中文
         if event.keyCode == UInt16(kVK_CapsLock) {
-            let capsOn = event.modifierFlags.contains(.capsLock)
-            let wasOverridden = Self.capsLockOverridden
-            if capsOn {
-                if Self.chineseMode {
-                    Self.capsLockOverridden = false  // 燈亮＝英文
-                } else {
-                    Self.chineseMode = true          // Shift 英文中按下：回中文，忽略燈
-                    Self.capsLockOverridden = true
-                }
-            } else {
-                Self.capsLockOverridden = false
-                Self.chineseMode = !wasOverridden    // 燈亮卻在打中文時按下＝切英文
-            }
-            let chinese = Self.chineseMode && !(capsOn && !Self.capsLockOverridden)
+            Self.chineseMode.toggle()
+            let chinese = Self.chineseMode
             if !chinese, let engine, let text = engine.flush() {
                 client.insertText(text, replacementRange: kNoRange)
             }
