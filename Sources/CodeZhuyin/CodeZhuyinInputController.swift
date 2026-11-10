@@ -22,17 +22,11 @@ class CodeZhuyinInputController: IMKInputController {
     private static var shiftDetector = ShiftTapDetector()
     /// 右 Option 單擊＝語音輸入。偵測器只看 keyCode，借用 Shift 單擊同一台狀態機
     private static var optionDetector = ShiftTapDetector()
-    /// 反向偵測：英文模式下發現在打注音就自動切回中文
-    private static var chineseDetector = ChineseTypingDetector { reading in
-        LexiconStore.lexicon?.unigrams(reading).isEmpty == false
-    }
     /// 貓貓模式：貓踩鍵盤就鎖住輸入
     private static var catDetector = CatPawDetector()
     private static var catUnlockWork: DispatchWorkItem?
     /// 大寫燈亮著卻在打注音：當它沒亮，直到使用者自己切換大寫才恢復
     private static var capsLockOverridden = false
-    /// 這段放行字母在文件裡的起點（用位置算術驗證，不需 app 支援讀取內容）
-    private static var passthroughAnchor: Int?
     /// 使用者選字學習：全行程共用一份（main.swift 結束前要 flush）
     static let userPhrases = UserPhraseStore(
         fileURL: FileManager.default
@@ -146,7 +140,6 @@ class CodeZhuyinInputController: IMKInputController {
             Self.chineseMode = Self.savedChineseMode ?? true
         }
         Self.inTerminal = terminal
-        Self.chineseDetector.reset()
     }
 
     override func deactivateServer(_ sender: Any!) {
@@ -257,7 +250,6 @@ class CodeZhuyinInputController: IMKInputController {
 
     /// 英文放行：照原廠，中/英鍵（Caps Lock）亮燈只是切英文，字母仍是小寫；要大寫按住 Shift。
     private func englishPassthrough(_ event: NSEvent, client: IMKTextInput) -> Bool {
-        if observeEnglishModeTyping(event, client: client) { return true }
         guard event.modifierFlags.contains(.capsLock),
               event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
               let chars = event.characters, chars.count == 1, let ch = chars.first,
@@ -268,77 +260,6 @@ class CodeZhuyinInputController: IMKInputController {
         return true
     }
 
-    /// 英文模式的旁路觀察：放行並偵測。觸發時把已放行的注音字母收回、原地重組成中文。
-    /// 回傳 true 表示這個按鍵被吃掉（觸發鍵不再進文件）。
-    private func observeEnglishModeTyping(_ event: NSEvent, client: IMKTextInput) -> Bool {
-        // 終端機裡的指令（ls、cd、git）很像注音，不自動切回中文
-        guard !Self.inTerminal, UserDefaults.standard.bool(forKey: SettingKey.englishHint),
-              event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
-              let chars = event.characters, chars.count == 1, let ch = chars.first,
-              ch.isASCII, !ch.isNewline, ch == " " || ch.isLetter || ch.isNumber || ch.isPunctuation || ch.isSymbol
-        else {
-            Self.chineseDetector.reset()  // 快捷鍵、方向鍵等：打斷偵測節奏
-            Self.passthroughAnchor = nil
-            return false
-        }
-        // 新一段的起點：記下這個字母插入前的游標位置
-        if !Self.chineseDetector.isTracking {
-            let location = client.selectedRange().location
-            Self.passthroughAnchor = location == NSNotFound ? nil : location
-        }
-        guard let keys = Self.chineseDetector.feed(Character(String(ch).lowercased())) else {
-            return false
-        }
-
-        // 觸發後一律回中文組字；大寫燈亮就再疊加「當它沒亮」。
-        // 兩者是獨立狀態——英文模式＋大寫燈同時成立時，只解其中一個
-        // 會讓下一鍵仍被放行，把剛組出的中文蓋掉（使用者實測踩到的疊加 bug）。
-        if event.modifierFlags.contains(.capsLock) {
-            Self.capsLockOverridden = true
-        }
-        Self.chineseMode = true
-        ModeHUD.shared.flash(chinese: true, near: caretLineRect(client))
-
-        // 觸發鍵還沒進文件；文件裡是前面已放行的字母（keys 去掉最後一鍵）
-        let emitted = String(keys.dropLast())
-        let length = emitted.utf16.count
-        let selection = client.selectedRange()
-
-        // 先驗證游標合法，才能安全計算範圍（NSNotFound 相減會溢位，
-        // 拿溢位範圍去 attributedSubstring 在嚴格的 app 會丟例外）
-        guard let engine = ensureEngine(),
-              selection.location != NSNotFound, selection.length == 0,
-              selection.location >= length
-        else {
-            Log.general.error("反向偵測：切回中文但游標狀態不明（\(selection.location)），不收回")
-            Self.passthroughAnchor = nil
-            return false  // 觸發鍵放行，維持原字母
-        }
-
-        // 驗證這段字母確實還完整躺在游標前面（使用者可能中途移動過游標）。
-        // 內容比對優先（大小寫不計，大寫模式放行的是大寫）；app 不給讀才信位置算術。
-        let documentRange = NSRange(location: selection.location - length, length: length)
-        let anchorMatches = Self.passthroughAnchor.map { $0 + length == selection.location } ?? false
-        let content = client.attributedSubstring(from: documentRange)?.string
-        let contentMatches = content.map { $0.lowercased() == emitted.lowercased() }
-
-        guard contentMatches ?? anchorMatches else {
-            let anchorText = Self.passthroughAnchor.map(String.init) ?? "無"
-            let detail = "游標 \(selection.location)、需 \(length) 字、起點 \(anchorText)、內容 \(content ?? "讀不到")"
-            Log.general.error("反向偵測：切回中文但無法收回字母（\(detail, privacy: .public)）")
-            Self.passthroughAnchor = nil
-            return false
-        }
-
-        Log.general.info("反向偵測：切回中文並收回 \(emitted.count + 1, privacy: .public) 個字母重組")
-        Self.passthroughAnchor = nil
-        for key in keys {
-            _ = engine.handle(key == " " ? .space : .character(key))
-        }
-        setMarked(engine.preedit(), client: client, replacing: documentRange)
-        return true  // 觸發鍵由我們消化，不讓它再進文件
-    }
-
     /// Shift 單擊切換中英。flagsChanged 在 NSMenu／開存檔對話框中收不到（平台限制）。
     private func handleFlagsChanged(_ event: NSEvent, client: IMKTextInput) {
         // Caps Lock 切換：亮＝英數直通模式（比照內建注音的習慣）
@@ -347,7 +268,6 @@ class CodeZhuyinInputController: IMKInputController {
         if event.keyCode == UInt16(kVK_CapsLock) {
             let capsOn = event.modifierFlags.contains(.capsLock)
             let wasOverridden = Self.capsLockOverridden
-            Self.chineseDetector.reset()
             if capsOn {
                 if Self.chineseMode {
                     Self.capsLockOverridden = false  // 燈亮＝英文

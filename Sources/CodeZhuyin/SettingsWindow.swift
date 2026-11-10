@@ -556,7 +556,7 @@ private struct SettingsView: View {
         VStack(alignment: .leading, spacing: 14) {
             PageHeader(title: "中英混打", subtitle: "打英文不用按 Caps Lock，輸入法自己判斷這串是英文還是注音。")
             Card {
-                ToggleRow(title: "中英自動偵測", detail: "中打英時 Tab 上英文；英文模式打注音會自動切回中文。", isOn: $englishHint)
+                ToggleRow(title: "中英自動偵測", detail: "中文模式打英文時 Tab 上英文。英文模式就是單純英數，不會自動切回中文。", isOn: $englishHint)
                 ToggleRow(
                     title: "英文後的空白＝英文加空格",
                     detail: "brew install llama.cpp 直接打：空白送出英文加空格，. , / ; - 照英文打。關掉時空白改開中英並列選字（開著時按 ↓）。",
@@ -566,7 +566,7 @@ private struct SettingsView: View {
                 ToggleRow(title: "Shift 單擊切換中／英", detail: "Shift＋字母永遠直接輸出英文字母。", isOn: $shiftToggle)
                 ToggleRow(
                     title: "終端機預設英文",
-                    detail: "切到 Terminal、iTerm2、Warp、Ghostty 等終端機時自動變英文，而且不會因為指令像注音就自己切回中文。要打中文按 Shift，終端機會記住各自的模式。",
+                    detail: "切到 Terminal、iTerm2、Warp、Ghostty 等終端機時自動變英文，要打中文按 Shift，終端機會記住各自的模式。",
                     last: true, isOn: $terminalEnglish
                 )
             }
