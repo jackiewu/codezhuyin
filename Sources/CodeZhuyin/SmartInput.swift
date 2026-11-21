@@ -33,6 +33,21 @@ enum SmartInput {
 
     static var isRunning: Bool { process?.isRunning == true }
 
+    /// 給偏好設定看的狀態：模型到底有沒有在用（使用者回報「裝了模型還是要一直選字」時先看這裡）
+    private static var startedAt: Date?
+    private static var lastReplyAt: Date?
+    private static var lastReplyMillis = 0
+    /// 這次啟動後 AI 校正實際改了幾次字
+    static var correctionsApplied = 0
+
+    static var statusText: String {
+        guard serverPath != nil else { return "沒有 llama.cpp（brew install llama.cpp）" }
+        guard modelExists else { return "還沒下載模型檔" }
+        guard isRunning, let startedAt else { return "未啟動：打字時才會啟動，載入約 10～30 秒" }
+        guard let lastReplyAt, lastReplyAt >= startedAt else { return "載入模型中…（約 10～30 秒，這段時間不會校正）" }
+        return "執行中：上次回應 \(lastReplyMillis) ms，這次啟動後已改正 \(correctionsApplied) 次"
+    }
+
     /// 沒打字多久就關掉伺服器、把約 4 GB 記憶體還給系統（使用者回報：開瀏覽器就卡）。
     /// 一打字就重新啟動（要 10～30 秒載入，這段時間不會有補句與校正）。
     /// ponytail: 固定 3 分鐘，嫌重開太常或太佔記憶體再調、或改成偏好設定
@@ -74,6 +89,8 @@ enum SmartInput {
         do {
             try launched.run()
             process = launched
+            startedAt = Date()
+            correctionsApplied = 0
             Log.general.info("智慧輸入：啟動模型伺服器")
         } catch {
             Log.general.error("智慧輸入：模型伺服器啟動失敗 \(String(describing: error), privacy: .public)")
@@ -88,6 +105,7 @@ enum SmartInput {
         guard let running = process else { return }
         running.terminate()
         process = nil
+        startedAt = nil
         Log.general.info("智慧輸入：關閉模型伺服器")
     }
 
@@ -111,11 +129,11 @@ enum SmartInput {
         }
     }
 
-    /// AI 校正：停手 0.6 秒後問。上文放在「正確：」後面當已知開頭，模型只寫組字區那段，
+    /// AI 校正：停手 0.35 秒後問（0.6 秒時常常字已經送出才回來，等於沒校正）。上文放在「正確：」後面當已知開頭，模型只寫組字區那段，
     /// 而且用文法限制每一格只能選同音字（實驗 H：看得到錯字句＋只能選同音，修 5、改壞 0）。
     /// 核心 applyCorrection 再做一次同音保險。
     static func correct(text: String, before: String, grammar: String, completion: @escaping (String) -> Void) {
-        schedule(.correction, after: 0.6, body: [
+        schedule(.correction, after: 0.35, body: [
             "prompt": fewShot + "錯字：\(before)\(text)\n正確：\(before)",
             "n_predict": text.count * 3 + 4,
             "grammar": grammar,
@@ -153,6 +171,8 @@ enum SmartInput {
             else { return }
             DispatchQueue.main.async {
                 let elapsed = Int(Date().timeIntervalSince(started) * 1000)
+                lastReplyAt = Date()
+                lastReplyMillis = elapsed
                 Log.general.info("智慧輸入（\(kind == .completion ? "補句" : "校正", privacy: .public)）：\(elapsed, privacy: .public) ms")
                 handle(content)
             }

@@ -734,3 +734,46 @@ private let 都的詞庫 = Lexicon(dataText: """
     #expect(feedAll(&detector, "aa123456") == nil)
     #expect(feedAll(&detector, "283") == nil)
 }
+
+// MARK: - 標點是分界：前面打好的英數不再被改寫
+
+private let 標點詞庫 = Lexicon(dataText: """
+# format org.openvanilla.mcbopomofo.sorted
+ㄏㄡˋ 後 -3.0
+ㄋㄡˋ 耨 -6.0
+ㄔㄡˇ 醜 -4.0
+ㄔˇ 尺 -4.0
+ㄨㄛˇ 我 -2.0
+ㄉㄡ 都 -4.0
+""")
+
+@Test func 英文後打句點_前面不被拆成兩字母詞加注音() {
+    // 實際：abc.qweert3 變成「ab 醜」——系統詞典有 ab，abc. 被拆成 ab＋ㄏㄡ，後面的鍵全被吃掉
+    let engine = InputEngine(lexicon: 標點詞庫)
+    engine.englishDetector = EnglishDetector(words: ["ab", "abc"])
+    for key in "abc.qweert3" { _ = engine.handle(.character(key)) }
+    #expect(engine.handle(.enter).commitText == "abc.qweert3")
+}
+
+@Test func 英文詞後面字母加句點是英文_不拆成詞加注音() {
+    // files. 的 s. ＝ ㄋㄡ：不能拆成 file＋耨
+    let engine = InputEngine(lexicon: 標點詞庫)
+    engine.englishDetector = EnglishDetector(words: ["file"])
+    for key in "files.txt" { _ = engine.handle(.character(key)) }
+    #expect(engine.handle(.enter).commitText == "files.txt")
+}
+
+@Test func 英文段標點之後打回注音_標點與前面的英文不動() {
+    let engine = InputEngine(lexicon: 標點詞庫)
+    engine.englishDetector = EnglishDetector(words: ["google"])
+    for key in "google.ji3" { _ = engine.handle(.character(key)) }
+    #expect(engine.handle(.enter).commitText?.filter { $0 != " " } == "google.我")
+}
+
+@Test func 兩字母技術詞加數字注音加標點照樣拆() {
+    let engine = InputEngine(lexicon: 標點詞庫)
+    engine.englishDetector = EnglishDetector(words: ["ab"])
+    for key in "ux2." { _ = engine.handle(.character(key)) }
+    _ = engine.handle(.space)
+    #expect(engine.handle(.enter).commitText?.filter { $0 != " " } == "ux都")
+}

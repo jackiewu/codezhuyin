@@ -690,9 +690,16 @@ private struct SettingsView: View {
                 ToggleRow(title: "AI 補句", detail: "提示列最前面出現 ✨，按 → 接受。", indent: true, isOn: $aiCompletion)
                     .disabled(!smartInput || !smartInputReady)
                     .onChange(of: aiCompletion) { _, _ in syncSmartInput() }
-                ToggleRow(title: "AI 校正", detail: "停手時自動改掉組字區的同音錯字。", indent: true, last: true, isOn: $smartCorrection)
+                ToggleRow(title: "AI 校正", detail: "停手時自動改掉組字區的同音錯字（夾英文的句子也會校正，英文不動）。", indent: true, isOn: $smartCorrection)
                     .disabled(!smartInput || !smartInputReady)
                     .onChange(of: smartCorrection) { _, _ in syncSmartInput() }
+                // 每 2 秒更新：看得到模型是不是真的載入、有沒有在改字
+                TimelineView(.periodic(from: .now, by: 2)) { _ in
+                    Row(title: "模型狀態", detail: smartInput ? SmartInput.statusText : "智慧輸入沒有打勾，模型不會啟動", showDivider: false) {
+                        Image(systemName: SmartInput.isRunning ? "circle.fill" : "circle")
+                            .foregroundStyle(SmartInput.isRunning ? Color.green : Color.secondary)
+                    }
+                }
             }
             if !smartInputReady {
                 SectionTitle(text: "還需要準備")

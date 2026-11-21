@@ -628,6 +628,13 @@ public final class InputEngine {
     /// 英文段中的一般按鍵：原樣直出；但若偵測到其實在打注音（兩個查得到的音節、
     /// 含數字聲調），就把這串已直出的按鍵退掉、結束英文段、改走注音組字
     private func handleLiteralRunKey(_ ch: Character) -> Output {
+        // 標點是分界：之前已經打出來的英數不再被收回重組（abc.qweert 的 abc. 不動），
+        // 偵測從標點之後重新算
+        if ".,/;-".contains(ch) {
+            literalRunDetector.reset()
+            insertLiteral(String(ch))
+            return .consumed
+        }
         guard englishHintEnabled, let keys = literalRunDetector.feed(ch) else {
             insertLiteral(String(ch))
             return .consumed
@@ -853,11 +860,17 @@ public final class InputEngine {
         let chars = Array(keys)
         for cut in stride(from: chars.count - 1, through: 2, by: -1) {
             let prefix = String(chars[..<cut])
-            guard prefix.allSatisfy({ $0.isLetter || $0.isNumber }), prefix.contains(where: \.isLetter),
-                  englishDetector?.isWord(prefix) == true
-                    || (cut == 2 && TechWords.twoLetter.contains(prefix.lowercased())) else { continue }
-            var rest = SyllableComposer()
+            guard prefix.allSatisfy({ $0.isLetter || $0.isNumber }), prefix.contains(where: \.isLetter) else { continue }
             let tail = chars[cut...]
+            // 兩字母只認常用技術詞（ui、ux、ai）：系統詞典收了 ab、ad 這類冷僻兩字母詞，
+            // abc. 會被拆成 ab＋ㄏㄡ，接著 qweert3 全被吃掉變成「ab 醜」
+            let techPair = cut == 2 && TechWords.twoLetter.contains(prefix.lowercased())
+            // 詞典詞後面只剩「字母＋標點」（files. 的 s.、users- 的 s-）：那是英文詞的一部分加標點，
+            // 不是要打注音。要拆，尾巴得夾數字鍵或其他注音鍵（ux2. 的 2）
+            let tailLooksZhuyin = tail.dropLast().contains(where: { !$0.isLetter })
+            guard techPair || (cut >= 3 && tailLooksZhuyin && englishDetector?.isWord(prefix) == true)
+            else { continue }
+            var rest = SyllableComposer()
             // 尾巴只有一個標點鍵（code, 的 , ＝ㄝ）不算注音：那是英文後面的標點，不是要打「欸」
             guard tail.contains(where: { $0.isLetter || $0.isNumber }),
                   tail.allSatisfy({ rest.press($0) == .absorbed }), rest.overwriteCount == 0,
@@ -1014,15 +1027,36 @@ public final class InputEngine {
             && cursor == elements.count && !elements.isEmpty
     }
 
-    /// AI 校正的對象：組好的字與每個字的注音（標點等直出的單字為 nil＝不能改）。
-    /// 每個元素剛好一個字時才提供（夾了 google 這種多字的英文就不校正），
-    /// 游標要在句尾（回頭改字時不動它）。
+    /// AI 校正的對象：組好的字與「每個字」的注音（英文、標點等直出的字為 nil＝不能改）。
+    /// 夾了 google 這種多字的英文也照樣校正（英文原樣保留，只改注音組出的字）——
+    /// 工程師幾乎每句都夾英文，舊版一夾英文就整句不校正。
+    /// 注音元素一定要剛好一個字（詞值與讀音對不上的就不校正），游標要在句尾（回頭改字時不動它）。
     public var correctionTarget: (text: String, readings: [String?])? {
+        guard let parts = correctionParts else { return nil }
+        return (parts.texts.joined(), parts.readings)
+    }
+
+    /// correctionTarget 的底層：每個元素的文字、逐字注音、每個元素在文字裡的起點（字數）
+    private var correctionParts: (texts: [String], readings: [String?], offsets: [Int])? {
         guard composer.isEmpty, sheet == nil, bilingual == nil, !isInLiteralRun,
-              !elements.isEmpty, cursor == elements.count else { return nil }
+              !elements.isEmpty, cursor == elements.count,
+              elements.contains(where: { $0.readingValue != nil }) else { return nil }
         let texts = elementTexts(converted: false)
-        guard texts.allSatisfy({ $0.count == 1 }) else { return nil }
-        return (texts.joined(), elements.map(\.readingValue))
+        var readings: [String?] = []
+        var offsets: [Int] = []
+        for (element, text) in zip(elements, texts) {
+            offsets.append(readings.count)
+            if let reading = element.readingValue {
+                // 自動空白會加在字前面（我愛 mac 的空白掛在 mac 上；mac 愛 的空白掛在「愛」上）
+                let body = text.drop(while: { $0 == " " })
+                guard body.count == 1 else { return nil }
+                readings += Array(repeating: nil, count: text.count - 1) + [reading]
+            } else {
+                guard !text.isEmpty else { return nil }
+                readings += Array(repeating: nil, count: text.count)
+            }
+        }
+        return (texts, readings, offsets)
     }
 
     /// AI 校正的文法限制（llama.cpp GBNF）：每一格只能是原字或同讀音的常用字（前 12 個），
@@ -1048,8 +1082,9 @@ public final class InputEngine {
     /// - Returns: 有沒有真的改到字
     @discardableResult
     public func applyCorrection(_ corrected: String, to original: String) -> Bool {
-        guard let target = correctionTarget, target.text == original, corrected.count == original.count
-        else { return false }
+        guard let parts = correctionParts else { return false }
+        let target = (text: parts.texts.joined(), readings: parts.readings)
+        guard target.text == original, corrected.count == original.count else { return false }
         let old = Array(original), proposed = Array(corrected)
         var chars = old
         for index in old.indices where proposed[index] != old[index] {
@@ -1060,12 +1095,17 @@ public final class InputEngine {
             }
         }
         guard chars != old else { return false }
+        // 元素 → 它那個字在文字裡的位置（注音元素前面可能掛著自動空白，字在最後）
+        func charIndex(_ element: Int) -> Int {
+            let next = element + 1 < parts.offsets.count ? parts.offsets[element + 1] : chars.count
+            return next - 1
+        }
         for segment in walked where segment.reading != nil
-            && (segment.start..<segment.end).contains(where: { chars[$0] != old[$0] }) {
+            && (segment.start..<segment.end).contains(where: { chars[charIndex($0)] != old[charIndex($0)] }) {
             pins.removeAll { $0.start < segment.end && segment.start < $0.end }
             pins.append(DecodedSegment(
                 start: segment.start, length: segment.length,
-                value: String(chars[segment.start..<segment.end]), reading: segment.reading
+                value: String((segment.start..<segment.end).map { chars[charIndex($0)] }), reading: segment.reading
             ))
         }
         rewalk()
