@@ -533,6 +533,7 @@ class CodeZhuyinInputController: IMKInputController {
                 return
             }
             Log.general.info("AI 校正：已改正")
+            SmartInput.correctionsApplied += 1
             Self.lastCorrectionRequest = engine.correctionTarget?.text  // 改好的句子不再重問
             self.syncUI(engine, client: client)
         }

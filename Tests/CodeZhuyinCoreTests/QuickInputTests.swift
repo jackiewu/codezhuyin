@@ -262,10 +262,26 @@ private func engineWithHabits() -> (InputEngine, UserPhraseStore) {
     #expect(engine.correctionGrammar == #"root ::= ("你" | "妳" | "擬") ("，") ("好")"#)
 }
 
-@Test func AI校正不碰夾英文的組字區() {
+@Test func AI校正夾英文也會校正_英文原樣不改() {
+    // 工程師幾乎每句都夾英文；舊版一夾英文就整句不校正，AI 等於沒在用
     let engine = InputEngine(lexicon: 測試詞庫)
     type(engine, "su3")
     _ = engine.handle(.englishLiteral("A"))
     _ = engine.handle(.escape)  // 結束英文段
+    type(engine, "cl3")
+    let target = engine.correctionTarget
+    #expect(target?.text == "你 A 好")
+    #expect(target?.readings == ["ㄋㄧˇ", nil, nil, nil, "ㄏㄠˇ"])
+    #expect(engine.correctionGrammar?.contains(#"("A")"#) == true)
+    #expect(engine.applyCorrection("妳 A 好", to: "你 A 好"))
+    #expect(engine.preedit().text == "妳 A 好")
+    #expect(!engine.applyCorrection("妳 B 好", to: "妳 A 好"))  // 英文不能改
+    #expect(engine.preedit().text == "妳 A 好")
+}
+
+@Test func AI校正不問純英文的組字區() {
+    let engine = InputEngine(lexicon: 測試詞庫)
+    _ = engine.handle(.englishLiteral("A"))
+    _ = engine.handle(.escape)
     #expect(engine.correctionTarget == nil)
 }
