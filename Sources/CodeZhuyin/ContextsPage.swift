@@ -1,5 +1,6 @@
 import Cocoa
 import SwiftUI
+import UniformTypeIdentifiers
 import CodeZhuyinCore
 
 /// 情境詞庫：全行程共用一份，存在 Application Support/CodeZhuyin/contexts.json
@@ -26,6 +27,45 @@ final class ContextModel: ObservableObject {
     func remove(_ id: UUID) {
         Contexts.store.remove(id: id)
         packs = Contexts.store.packs
+    }
+
+    func duplicate(_ id: UUID) -> ContextPack? {
+        let copy = Contexts.store.duplicate(id: id)
+        packs = Contexts.store.packs
+        return copy
+    }
+
+    /// 存成一個檔案（全部情境，含注音與開關）。回傳給畫面顯示的結果
+    func backupAll() -> String? {
+        guard let data = Contexts.store.backupData() else { return "備份失敗：沒辦法產生檔案" }
+        let panel = NSSavePanel()
+        panel.title = "備份全部情境"
+        panel.allowedContentTypes = [.json]
+        let day = Date().formatted(.iso8601.year().month().day())
+        panel.nameFieldStringValue = "碼注音情境備份-\(day).json"
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return nil }
+        do {
+            try data.write(to: url, options: .atomic)
+            return "已備份 \(packs.count) 個情境到 \(url.lastPathComponent)"
+        } catch {
+            return "備份失敗：\(error.localizedDescription)"
+        }
+    }
+
+    /// 從備份檔還原：同名的合併，沒有的加回來，不會刪掉現有的情境
+    func restoreBackup() -> String? {
+        let panel = NSOpenPanel()
+        panel.title = "從備份還原情境"
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return nil }
+        guard let data = try? Data(contentsOf: url), let result = Contexts.store.restore(from: data) else {
+            return "看不懂這個檔案：要用「備份全部」存出來的檔案（單一情境的 JSON 請用情境裡的「匯入 JSON…」）"
+        }
+        packs = Contexts.store.packs
+        return "已還原：新增 \(result.newPacks) 個情境、合併 \(result.mergedPacks) 個同名情境，共加入 \(result.newTerms) 個詞"
     }
 
     /// 把一個詞變成情境詞：中文推注音、英文直接收。回傳 nil 和不能加的原因
@@ -70,6 +110,7 @@ struct ContextsPage: View {
     @State private var showingImport = false
     /// 匯入到既有情境：哪一個情境的「匯入 JSON…」被按了
     @State private var importTarget: ContextPack?
+    @State private var backupMessage: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -93,6 +134,24 @@ struct ContextsPage: View {
                     Label("新增空白情境", systemImage: "plus")
                 }
                 Spacer()
+                Button {
+                    if let message = model.backupAll() { backupMessage = message }
+                } label: {
+                    Label("備份全部…", systemImage: "square.and.arrow.down")
+                }
+                .help("把全部情境（含注音與開關）存成一個 JSON 檔")
+                .disabled(model.packs.isEmpty)
+                Button {
+                    if let message = model.restoreBackup() { backupMessage = message }
+                } label: {
+                    Label("從備份還原…", systemImage: "arrow.counterclockwise")
+                }
+                .help("同名的情境合併（重複的詞略過），沒有的情境加回來，不會刪掉現有的")
+            }
+            if let backupMessage {
+                Text(verbatim: backupMessage)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(Theme.brand)
             }
             if model.packs.isEmpty {
                 Card {
@@ -112,7 +171,10 @@ struct ContextsPage: View {
                     },
                     onSave: { model.upsert($0) },
                     onDelete: { model.remove(pack.id) },
-                    onImportJSON: { importTarget = pack }
+                    onImportJSON: { importTarget = pack },
+                    onDuplicate: {
+                        if let copy = model.duplicate(pack.id) { expanded.insert(copy.id) }
+                    }
                 )
             }
         }
@@ -138,6 +200,7 @@ private struct PackCard: View {
     let onSave: (ContextPack) -> Void
     let onDelete: () -> Void
     let onImportJSON: () -> Void
+    let onDuplicate: () -> Void
 
     @State private var newWord = ""
     @State private var copiedJSON = false
@@ -183,13 +246,16 @@ private struct PackCard: View {
                         Spacer()
                         Button("匯入 JSON…", action: onImportJSON)
                             .help("貼上 JSON，合併進這個情境或取代裡面的詞")
-                        Button(copiedJSON ? "已複製" : "複製 JSON") {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(ContextImport.export(pack), forType: .string)
-                            copiedJSON = true
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copiedJSON = false }
+                        Menu(copiedJSON ? "已複製" : "複製") {
+                            Button("建立副本（複製整個情境）", action: onDuplicate)
+                            Button("複製成 JSON（可以改完再匯入）") {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(ContextImport.export(pack), forType: .string)
+                                copiedJSON = true
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copiedJSON = false }
+                            }
                         }
-                        .help("複製成跟匯入相同格式的 JSON，可以自己改或給 AI 補詞後再匯入")
+                        .fixedSize()
                         Button("刪除情境", role: .destructive) { confirmingDelete = true }
                     }
                     .padding(.horizontal, 16)

@@ -104,3 +104,34 @@ private let 情境詞庫 = Lexicon(dataText: """
     #expect(draft?.english == ["V60"])
     #expect(ContextImport.prompt(adding: pack).contains("單品"))
 }
+
+@Test func 複製情境_新的id與名稱() {
+    let store = ContextStore(fileURL: nil)
+    let pack = ContextPack(name: "咖啡", terms: [ContextTerm(value: "單品", reading: "ㄉㄢ-ㄆㄧㄣˇ")])
+    store.upsert(pack)
+    let copy = store.duplicate(id: pack.id)
+    let copy2 = store.duplicate(id: pack.id)
+    #expect(copy?.name == "咖啡 副本")
+    #expect(copy2?.name == "咖啡 副本 2")
+    #expect(copy?.id != pack.id)
+    #expect(copy?.terms.first?.id != pack.terms.first?.id)
+    #expect(copy?.terms.map(\.value) == ["單品"])
+    #expect(store.packs.count == 3)
+}
+
+@Test func 備份與還原_同名合併_沒有的加回來() throws {
+    let source = ContextStore(fileURL: nil)
+    source.upsert(ContextPack(name: "咖啡", terms: [ContextTerm(value: "單品", reading: "ㄉㄢ-ㄆㄧㄣˇ"), ContextTerm(value: "V60", reading: nil)]))
+    source.upsert(ContextPack(name: "資安", enabled: false, terms: [ContextTerm(value: "私鑰", reading: "ㄙ-ㄩㄝˋ")]))
+    let data = try #require(source.backupData())
+
+    let target = ContextStore(fileURL: nil)
+    target.upsert(ContextPack(name: "咖啡", terms: [ContextTerm(value: "單品", reading: "ㄉㄢ-ㄆㄧㄣˇ")]))
+    let result = target.restore(from: data)
+    #expect(result == ContextStore.RestoreResult(newPacks: 1, mergedPacks: 1, newTerms: 2))
+    #expect(target.packs.map(\.name) == ["咖啡", "資安"])
+    #expect(target.packs[0].terms.map(\.value) == ["單品", "V60"])
+    #expect(target.packs[1].enabled == false)
+    #expect(target.packs[1].terms[0].reading == "ㄙ-ㄩㄝˋ")
+    #expect(target.restore(from: Data("不是 JSON".utf8)) == nil)
+}
