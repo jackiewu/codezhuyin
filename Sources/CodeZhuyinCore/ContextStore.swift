@@ -19,6 +19,35 @@ public struct ContextPack: Codable, Identifiable, Equatable, Sendable {
 
     public var chineseCount: Int { terms.count(where: { $0.reading != nil }) }
     public var englishCount: Int { terms.count(where: { $0.reading == nil }) }
+
+    /// 複製一份：新的 id、名稱加「副本」，詞也換新 id
+    public func duplicated(name: String? = nil) -> ContextPack {
+        ContextPack(
+            name: name ?? "\(self.name) 副本",
+            detail: detail,
+            enabled: enabled,
+            terms: terms.map { ContextTerm(value: $0.value, reading: $0.reading) }
+        )
+    }
+
+    /// 把匯入的詞放進這個情境，回傳新加入幾個。
+    /// 合併：已經有的詞略過（保留原本改過的注音）。
+    /// 取代：只留這次匯入的詞；原本就有的詞沿用舊的那筆，破音字改過的讀音不會被洗掉。
+    @discardableResult
+    public mutating func importTerms(_ incoming: [ContextTerm], replacing: Bool) -> Int {
+        let old = terms
+        if replacing { terms = [] }
+        var added = 0
+        for term in incoming where !terms.contains(where: { $0.value == term.value }) {
+            if let kept = old.first(where: { $0.value == term.value }) {
+                terms.append(kept)  // 只有取代時會走到：合併時舊詞已經在 terms 裡
+            } else {
+                terms.append(term)
+                added += 1
+            }
+        }
+        return added
+    }
 }
 
 /// 情境裡的一個詞。reading＝詞庫格式的注音（ㄧㄝ-ㄐㄧㄚ-ㄒㄩㄝˇ-ㄈㄟ）；nil＝英文詞
@@ -73,6 +102,58 @@ public final class ContextStore {
             packs.append(pack)
         }
         changed()
+    }
+
+    /// 複製情境，放在原本那個的後面，回傳新的情境
+    @discardableResult
+    public func duplicate(id: UUID) -> ContextPack? {
+        guard let i = packs.firstIndex(where: { $0.id == id }) else { return nil }
+        var name = "\(packs[i].name) 副本"
+        var n = 2
+        while packs.contains(where: { $0.name == name }) {
+            name = "\(packs[i].name) 副本 \(n)"
+            n += 1
+        }
+        let copy = packs[i].duplicated(name: name)
+        packs.insert(copy, at: i + 1)
+        changed()
+        return copy
+    }
+
+    /// 全部情境的備份檔（含注音與開關，跟 contexts.json 同格式）
+    public func backupData() -> Data? {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        return try? encoder.encode(packs)
+    }
+
+    public struct RestoreResult: Equatable, Sendable {
+        public var newPacks = 0
+        public var mergedPacks = 0
+        public var newTerms = 0
+    }
+
+    /// 從備份檔還原：同名的情境合併（重複的詞略過、改過的注音保留），沒有的情境整個加回來。
+    /// 不會刪掉現在有、備份裡沒有的情境。看不懂的檔案回傳 nil。
+    public func restore(from data: Data) -> RestoreResult? {
+        guard let backup = try? JSONDecoder().decode([ContextPack].self, from: data) else { return nil }
+        var result = RestoreResult()
+        for pack in backup {
+            if let i = packs.firstIndex(where: { $0.name == pack.name }) {
+                let added = packs[i].importTerms(pack.terms, replacing: false)
+                if packs[i].detail.isEmpty { packs[i].detail = pack.detail }
+                result.mergedPacks += 1
+                result.newTerms += added
+            } else {
+                var restored = pack
+                if packs.contains(where: { $0.id == pack.id }) { restored.id = UUID() }
+                packs.append(restored)
+                result.newPacks += 1
+                result.newTerms += pack.terms.count
+            }
+        }
+        changed()
+        return result
     }
 
     public func remove(id: UUID) {
@@ -137,6 +218,32 @@ public enum ContextImport {
         }
         規則：words 只放純中文、至少兩個字；英文、數字、中英夾雜的詞放 english；各 20 到 60 個，不要重複、不要解釋。
         """
+    }
+
+    /// 已有情境補詞的提示詞：附上現有的詞，請 AI 只補新的
+    public static func prompt(adding pack: ContextPack) -> String {
+        let topic = pack.detail.isEmpty ? pack.name : "\(pack.name)（\(pack.detail)）"
+        let chinese = pack.terms.filter { $0.reading != nil }.map(\.value)
+        let english = pack.terms.filter { $0.reading == nil }.map(\.value)
+        return prompt(keywords: topic) + """
+
+        我已經有這些詞，不要重複，請補充其他的：
+        words: \(chinese.joined(separator: "、"))
+        english: \(english.joined(separator: ", "))
+        """
+    }
+
+    /// 把情境匯出成跟匯入相同格式的 JSON（可以自己改完再貼回來）
+    public static func export(_ pack: ContextPack) -> String {
+        let object: [String: Any] = [
+            "name": pack.name,
+            "description": pack.detail,
+            "words": pack.terms.filter { $0.reading != nil }.map(\.value),
+            "english": pack.terms.filter { $0.reading == nil }.map(\.value),
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]),
+              let text = String(data: data, encoding: .utf8) else { return "" }
+        return text
     }
 
     public static func parse(_ text: String) -> Draft? {
