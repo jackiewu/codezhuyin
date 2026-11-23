@@ -68,6 +68,8 @@ struct ContextsPage: View {
     @StateObject private var model = ContextModel()
     @State private var expanded: Set<UUID> = []
     @State private var showingImport = false
+    /// 匯入到既有情境：哪一個情境的「匯入 JSON…」被按了
+    @State private var importTarget: ContextPack?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -109,12 +111,19 @@ struct ContextsPage: View {
                         if expanded.contains(pack.id) { expanded.remove(pack.id) } else { expanded.insert(pack.id) }
                     },
                     onSave: { model.upsert($0) },
-                    onDelete: { model.remove(pack.id) }
+                    onDelete: { model.remove(pack.id) },
+                    onImportJSON: { importTarget = pack }
                 )
             }
         }
         .sheet(isPresented: $showingImport) {
             ContextImportSheet(existing: model.packs) { pack in
+                model.upsert(pack)
+                expanded.insert(pack.id)
+            }
+        }
+        .sheet(item: $importTarget) { target in
+            ContextImportSheet(existing: model.packs, target: target) { pack in
                 model.upsert(pack)
                 expanded.insert(pack.id)
             }
@@ -128,8 +137,10 @@ private struct PackCard: View {
     let onToggleExpand: () -> Void
     let onSave: (ContextPack) -> Void
     let onDelete: () -> Void
+    let onImportJSON: () -> Void
 
     @State private var newWord = ""
+    @State private var copiedJSON = false
     @State private var addError: String?
     @State private var name = ""
     @State private var confirmingDelete = false
@@ -170,6 +181,15 @@ private struct PackCard: View {
                             .onSubmit(rename)
                         Button("儲存名稱", action: rename).disabled(name.isEmpty || name == pack.name)
                         Spacer()
+                        Button("匯入 JSON…", action: onImportJSON)
+                            .help("貼上 JSON，合併進這個情境或取代裡面的詞")
+                        Button(copiedJSON ? "已複製" : "複製 JSON") {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(ContextImport.export(pack), forType: .string)
+                            copiedJSON = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copiedJSON = false }
+                        }
+                        .help("複製成跟匯入相同格式的 JSON，可以自己改或給 AI 補詞後再匯入")
                         Button("刪除情境", role: .destructive) { confirmingDelete = true }
                     }
                     .padding(.horizontal, 16)
@@ -267,6 +287,8 @@ private struct PackCard: View {
 
 private struct ContextImportSheet: View {
     let existing: [ContextPack]
+    /// 有值＝匯入到這個既有情境（可選合併或取代）；nil＝用 AI 產生新情境
+    var target: ContextPack? = nil
     let onImport: (ContextPack) -> Void
     @Environment(\.dismiss) private var dismiss
 
@@ -279,6 +301,7 @@ private struct ContextImportSheet: View {
     @State private var candidates: [Candidate] = []
     @State private var skipped: [(String, String)] = []
     @State private var previewing = false
+    @State private var replacing = false
 
     struct Candidate: Identifiable {
         let id = UUID()
@@ -289,7 +312,7 @@ private struct ContextImportSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(verbatim: previewing ? "匯入「\(draftName)」" : "用外部 AI 產生情境")
+            Text(verbatim: title)
                 .font(.system(size: 18, weight: .bold))
             if previewing { preview } else { input }
         }
@@ -297,25 +320,51 @@ private struct ContextImportSheet: View {
         .frame(width: 600, height: 520)
     }
 
+    private var title: String {
+        if let target { return "匯入 JSON 到「\(target.name)」" }
+        return previewing ? "匯入「\(draftName)」" : "用外部 AI 產生情境"
+    }
+
+    /// 目前畫面上的目標情境（用最新的一份，避免開著視窗時又在別處改過）
+    private var currentTarget: ContextPack? {
+        guard let target else { return nil }
+        return existing.first(where: { $0.id == target.id }) ?? target
+    }
+
     private var input: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(verbatim: "碼注音不連網：提示詞由你貼給 AI，回覆也由你貼回來。")
-                .font(.system(size: 12)).foregroundStyle(.secondary)
-            Text(verbatim: "① 輸入領域關鍵字").font(.system(size: 13, weight: .semibold))
-            HStack {
-                TextField("例如：咖啡烘豆、手沖、杯測", text: $keywords).textFieldStyle(.roundedBorder)
-                Button(copied ? "已複製" : "複製提示詞") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(ContextImport.prompt(keywords: keywords), forType: .string)
-                    copied = true
+            if let target = currentTarget {
+                Text(verbatim: "貼上情境 JSON（格式同「用 AI 產生」：name、description、words、english），下一步可以選合併或取代。")
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                HStack {
+                    Text(verbatim: "想請 AI 補詞：提示詞會附上這個情境現有的 \(target.terms.count) 個詞，請它只給新的。")
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                    Spacer()
+                    Button(copied ? "已複製" : "複製補詞提示詞") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(ContextImport.prompt(adding: target), forType: .string)
+                        copied = true
+                    }
                 }
-                .disabled(keywords.trimmingCharacters(in: .whitespaces).isEmpty)
+            } else {
+                Text(verbatim: "碼注音不連網：提示詞由你貼給 AI，回覆也由你貼回來。")
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                Text(verbatim: "① 輸入領域關鍵字").font(.system(size: 13, weight: .semibold))
+                HStack {
+                    TextField("例如：咖啡烘豆、手沖、杯測", text: $keywords).textFieldStyle(.roundedBorder)
+                    Button(copied ? "已複製" : "複製提示詞") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(ContextImport.prompt(keywords: keywords), forType: .string)
+                        copied = true
+                    }
+                    .disabled(keywords.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
             }
             if copied {
                 Text(verbatim: "提示詞已複製，貼到 ChatGPT、Claude 或 Gemini 的對話框。")
                     .font(.system(size: 11.5)).foregroundStyle(Theme.brand)
             }
-            Text(verbatim: "② 貼上 AI 的回覆").font(.system(size: 13, weight: .semibold))
+            Text(verbatim: target == nil ? "② 貼上 AI 的回覆" : "貼上 JSON 或 AI 的回覆").font(.system(size: 13, weight: .semibold))
             TextEditor(text: $reply)
                 .font(.system(size: 12, design: .monospaced))
                 .scrollContentBackground(.hidden)
@@ -337,12 +386,30 @@ private struct ContextImportSheet: View {
 
     private var preview: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                TextField("情境名稱", text: $draftName).textFieldStyle(.roundedBorder)
-            }
-            if existing.contains(where: { $0.name == draftName }) {
-                Text(verbatim: "已經有同名的情境，匯入會加進那個情境（重複的詞略過）。")
-                    .font(.system(size: 11.5)).foregroundStyle(.orange)
+            if let target = currentTarget {
+                Picker("", selection: $replacing) {
+                    Text(verbatim: "合併：加進新詞，重複的略過").tag(false)
+                    Text(verbatim: "取代：只留這次的詞").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                if replacing {
+                    let removed = target.terms.count(where: { term in
+                        !candidates.contains { $0.include && $0.term.value == term.value }
+                    })
+                    Text(verbatim: removed == 0
+                         ? "原本的詞都在這次的 JSON 裡，不會刪到詞。破音字改過的讀音會保留。"
+                         : "原本的 \(target.terms.count) 個詞中，有 \(removed) 個不在這次的 JSON 裡，會被移除。破音字改過的讀音會保留。")
+                        .font(.system(size: 11.5)).foregroundStyle(removed == 0 ? Color.secondary : Color.orange)
+                }
+            } else {
+                HStack {
+                    TextField("情境名稱", text: $draftName).textFieldStyle(.roundedBorder)
+                }
+                if existing.contains(where: { $0.name == draftName }) {
+                    Text(verbatim: "已經有同名的情境，匯入會加進那個情境（重複的詞略過）。")
+                        .font(.system(size: 11.5)).foregroundStyle(.orange)
+                }
             }
             List {
                 ForEach($candidates) { $candidate in
@@ -351,7 +418,9 @@ private struct ContextImportSheet: View {
                         Text(verbatim: candidate.term.value).font(.system(size: 13, weight: .medium)).frame(minWidth: 110, alignment: .leading)
                         Text(verbatim: candidate.term.readingDisplay ?? "英文詞")
                             .font(.system(size: 12)).foregroundStyle(.secondary)
-                        if candidate.polyphonic {
+                        if isExisting(candidate.term) {
+                            Text(verbatim: "已有").font(.system(size: 11)).foregroundStyle(.tertiary)
+                        } else if candidate.polyphonic {
                             Text(verbatim: "破音字，匯入後可在「…」改").font(.system(size: 11)).foregroundStyle(.orange)
                         }
                     }
@@ -367,13 +436,16 @@ private struct ContextImportSheet: View {
             }
             HStack {
                 let count = candidates.count(where: { $0.include })
-                Text(verbatim: "將加入 \(count) 個詞").font(.system(size: 12)).foregroundStyle(.secondary)
+                let fresh = candidates.count(where: { $0.include && !isExisting($0.term) })
+                Text(verbatim: summary(count: count, fresh: fresh)).font(.system(size: 12)).foregroundStyle(.secondary)
                 Spacer()
                 Button("返回") { previewing = false }
                 Button("匯入", action: commit)
                     .buttonStyle(.borderedProminent)
                     .tint(Theme.brand)
-                    .disabled(count == 0 || draftName.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(target == nil
+                              ? count == 0 || draftName.trimmingCharacters(in: .whitespaces).isEmpty
+                              : replacing ? count == 0 : fresh == 0)
             }
         }
     }
@@ -402,13 +474,30 @@ private struct ContextImportSheet: View {
         previewing = true
     }
 
+    /// 這個詞目標情境裡已經有了（只在匯入到既有情境時標示）
+    private func isExisting(_ term: ContextTerm) -> Bool {
+        currentTarget?.terms.contains(where: { $0.value == term.value }) ?? false
+    }
+
+    private func summary(count: Int, fresh: Int) -> String {
+        guard target != nil else { return "將加入 \(count) 個詞" }
+        if replacing { return "取代後共 \(count) 個詞（新詞 \(fresh) 個）" }
+        let duplicate = count - fresh
+        return duplicate == 0 ? "將加入 \(fresh) 個新詞" : "將加入 \(fresh) 個新詞，\(duplicate) 個已有的略過"
+    }
+
     private func commit() {
-        let name = draftName.trimmingCharacters(in: .whitespaces)
-        var pack = existing.first(where: { $0.name == name }) ?? ContextPack(name: name, detail: draftDetail)
-        if pack.detail.isEmpty { pack.detail = draftDetail }
-        for candidate in candidates where candidate.include && !pack.terms.contains(where: { $0.value == candidate.term.value }) {
-            pack.terms.append(candidate.term)
+        let terms = candidates.filter(\.include).map(\.term)
+        var pack: ContextPack
+        if let target = currentTarget {
+            pack = target
+            pack.importTerms(terms, replacing: replacing)
+        } else {
+            let name = draftName.trimmingCharacters(in: .whitespaces)
+            pack = existing.first(where: { $0.name == name }) ?? ContextPack(name: name, detail: draftDetail)
+            pack.importTerms(terms, replacing: false)
         }
+        if pack.detail.isEmpty { pack.detail = draftDetail }
         onImport(pack)
         dismiss()
     }

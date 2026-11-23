@@ -19,6 +19,25 @@ public struct ContextPack: Codable, Identifiable, Equatable, Sendable {
 
     public var chineseCount: Int { terms.count(where: { $0.reading != nil }) }
     public var englishCount: Int { terms.count(where: { $0.reading == nil }) }
+
+    /// 把匯入的詞放進這個情境，回傳新加入幾個。
+    /// 合併：已經有的詞略過（保留原本改過的注音）。
+    /// 取代：只留這次匯入的詞；原本就有的詞沿用舊的那筆，破音字改過的讀音不會被洗掉。
+    @discardableResult
+    public mutating func importTerms(_ incoming: [ContextTerm], replacing: Bool) -> Int {
+        let old = terms
+        if replacing { terms = [] }
+        var added = 0
+        for term in incoming where !terms.contains(where: { $0.value == term.value }) {
+            if let kept = old.first(where: { $0.value == term.value }) {
+                terms.append(kept)  // 只有取代時會走到：合併時舊詞已經在 terms 裡
+            } else {
+                terms.append(term)
+                added += 1
+            }
+        }
+        return added
+    }
 }
 
 /// 情境裡的一個詞。reading＝詞庫格式的注音（ㄧㄝ-ㄐㄧㄚ-ㄒㄩㄝˇ-ㄈㄟ）；nil＝英文詞
@@ -137,6 +156,32 @@ public enum ContextImport {
         }
         規則：words 只放純中文、至少兩個字；英文、數字、中英夾雜的詞放 english；各 20 到 60 個，不要重複、不要解釋。
         """
+    }
+
+    /// 已有情境補詞的提示詞：附上現有的詞，請 AI 只補新的
+    public static func prompt(adding pack: ContextPack) -> String {
+        let topic = pack.detail.isEmpty ? pack.name : "\(pack.name)（\(pack.detail)）"
+        let chinese = pack.terms.filter { $0.reading != nil }.map(\.value)
+        let english = pack.terms.filter { $0.reading == nil }.map(\.value)
+        return prompt(keywords: topic) + """
+
+        我已經有這些詞，不要重複，請補充其他的：
+        words: \(chinese.joined(separator: "、"))
+        english: \(english.joined(separator: ", "))
+        """
+    }
+
+    /// 把情境匯出成跟匯入相同格式的 JSON（可以自己改完再貼回來）
+    public static func export(_ pack: ContextPack) -> String {
+        let object: [String: Any] = [
+            "name": pack.name,
+            "description": pack.detail,
+            "words": pack.terms.filter { $0.reading != nil }.map(\.value),
+            "english": pack.terms.filter { $0.reading == nil }.map(\.value),
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]),
+              let text = String(data: data, encoding: .utf8) else { return "" }
+        return text
     }
 
     public static func parse(_ text: String) -> Draft? {

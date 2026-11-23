@@ -61,3 +61,46 @@ private let 情境詞庫 = Lexicon(dataText: """
     #expect(draft?.skipped.map { $0.0 } == ["UV烘焙", "豆"])
     #expect(ContextImport.parse("沒有 JSON") == nil)
 }
+
+@Test func 既有情境匯入_合併略過重複_保留改過的注音() {
+    var pack = ContextPack(name: "資安", terms: [
+        ContextTerm(value: "私鑰", reading: "ㄙ-ㄩㄝˋ"),  // 使用者改過的讀音
+        ContextTerm(value: "Vault", reading: nil),
+    ])
+    let added = pack.importTerms([
+        ContextTerm(value: "私鑰", reading: "ㄙ-ㄧㄠˋ"),
+        ContextTerm(value: "單品", reading: "ㄉㄢ-ㄆㄧㄣˇ"),
+        ContextTerm(value: "Vault", reading: nil),
+        ContextTerm(value: "SOPS", reading: nil),
+    ], replacing: false)
+    #expect(added == 2)
+    #expect(pack.terms.map(\.value) == ["私鑰", "Vault", "單品", "SOPS"])
+    #expect(pack.terms[0].reading == "ㄙ-ㄩㄝˋ")
+}
+
+@Test func 既有情境匯入_取代只留新的詞() {
+    var pack = ContextPack(name: "資安", terms: [
+        ContextTerm(value: "私鑰", reading: "ㄙ-ㄩㄝˋ"),
+        ContextTerm(value: "Vault", reading: nil),
+    ])
+    let added = pack.importTerms([
+        ContextTerm(value: "私鑰", reading: "ㄙ-ㄧㄠˋ"),
+        ContextTerm(value: "SOPS", reading: nil),
+    ], replacing: true)
+    #expect(added == 1)
+    #expect(pack.terms.map(\.value) == ["私鑰", "SOPS"])
+    #expect(pack.terms[0].reading == "ㄙ-ㄩㄝˋ")  // 舊詞沿用改過的讀音
+}
+
+@Test func 情境匯出的JSON可以再匯入() {
+    let pack = ContextPack(name: "咖啡", detail: "手沖", terms: [
+        ContextTerm(value: "單品", reading: "ㄉㄢ-ㄆㄧㄣˇ"),
+        ContextTerm(value: "V60", reading: nil),
+    ])
+    let draft = ContextImport.parse(ContextImport.export(pack))
+    #expect(draft?.name == "咖啡")
+    #expect(draft?.detail == "手沖")
+    #expect(draft?.chinese == ["單品"])
+    #expect(draft?.english == ["V60"])
+    #expect(ContextImport.prompt(adding: pack).contains("單品"))
+}
