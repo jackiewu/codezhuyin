@@ -32,6 +32,7 @@ enum SwitchDiagnostics {
         ) { _ in
             // 換 app 本身不記；只有換完碼注音變得不能選時才記（灰掉的瞬間）
             if ownSourceState().selectable == false { record("切換 app 後碼注音不能選") }
+            checkRecoveryNow()
         })
         record("啟動")
         previousSourceID = currentSourceID()
@@ -49,35 +50,74 @@ enum SwitchDiagnostics {
     private static var reassertUntil = Date.distantPast
     private static var reassertCount = 0
 
+    /// 安全輸入開著嗎。IsSecureEventInputEnabled 有時只反映部分狀態，再加上系統記的「誰開著」
+    private static func secureInputOn() -> Bool {
+        IsSecureEventInputEnabled() || securePID() != nil
+    }
+
     private static func watchForcedSwitch() {
         let current = currentSourceID()
         defer { previousSourceID = current }
-        if isOwn(current) || (forcedSourceID != nil && current != forcedSourceID) {
+        if isOwn(current) {
             stopRecovery()
             return
         }
-        if isOwn(previousSourceID), !IsSecureEventInputEnabled(), Date() < reassertUntil, reassertCount < 3 {
+        // 等待中又被換成別的英文輸入法：安全輸入還開著就是系統換的，繼續等；關了才算使用者自己換
+        if forcedSourceID != nil {
+            if secureInputOn() { forcedSourceID = current } else { stopRecovery() }
+            return
+        }
+        if isOwn(previousSourceID), !secureInputOn(), Date() < reassertUntil, reassertCount < 3 {
             reassertCount += 1
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                guard currentSourceID() == current, !IsSecureEventInputEnabled(), let own = ownSource() else { return }
+                guard currentSourceID() == current, !secureInputOn(), let own = ownSource() else { return }
                 let status = TISSelectInputSource(own)
                 record(status == noErr ? "切回後又被換成 ABC，再切回碼注音" : "再切回失敗：\(status)")
             }
             return
         }
-        guard isOwn(previousSourceID), IsSecureEventInputEnabled(), recoveryTimer == nil else { return }
+        guard isOwn(previousSourceID), recoveryTimer == nil else { return }
+        if secureInputOn() || ownSourceState().selectable == false {
+            beginRecovery(current)
+            return
+        }
+        // 系統有時先換輸入法、稍後才標記安全輸入：過一下再看一次，免得漏掉
+        for delay in [0.5, 1.5] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                guard recoveryTimer == nil, currentSourceID() == current,
+                      secureInputOn() || ownSourceState().selectable == false else { return }
+                beginRecovery(current)
+            }
+        }
+    }
+
+    private static func beginRecovery(_ current: String) {
         forcedSourceID = current
         forcedSince = Date()
+        stuckNotified = false
         record("被安全輸入切走，等它結束後切回碼注音")
         recoveryTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in checkRecovery() }
     }
 
+    /// 換 app 時立刻檢查一次，不用等計時器
+    private static func checkRecoveryNow() {
+        if recoveryTimer != nil { checkRecovery() }
+    }
+
     private static func checkRecovery() {
-        guard currentSourceID() == forcedSourceID, Date().timeIntervalSince(forcedSince) < 3600 else {
+        guard forcedSourceID != nil, Date().timeIntervalSince(forcedSince) < 3600 else {
             stopRecovery()
             return
         }
-        guard !IsSecureEventInputEnabled(), let own = ownSource() else { return }
+        let current = currentSourceID()
+        if isOwn(current) {
+            stopRecovery()
+            return
+        }
+        guard !secureInputOn(), ownSourceState().selectable != false, let own = ownSource() else {
+            warnIfStuck()
+            return
+        }
         stopRecovery()
         let status = TISSelectInputSource(own)
         record(status == noErr ? "安全輸入結束，自動切回碼注音" : "自動切回失敗：\(status)")
@@ -85,10 +125,60 @@ enum SwitchDiagnostics {
         reassertCount = 0
     }
 
+    // MARK: - 安全輸入一直不放
+
+    /// 登入完某個 app 還佔著安全輸入（Chrome 常見）：碼注音沒辦法替它關掉，只能告訴使用者是誰、怎麼解。
+    /// 佔著的 app 不在前景超過 8 秒、或在前景超過 30 秒，每次被切走只通知一次
+    private static var stuckNotified = false
+    private static var holderInBackgroundSince: Date?
+
+    private static func warnIfStuck() {
+        guard !stuckNotified, let pid = securePID() else {
+            holderInBackgroundSince = nil
+            return
+        }
+        let frontPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        let waited = Date().timeIntervalSince(forcedSince)
+        if frontPID == pid {
+            holderInBackgroundSince = nil
+            guard waited >= 30 else { return }
+        } else {
+            let since = holderInBackgroundSince ?? Date()
+            holderInBackgroundSince = since
+            guard Date().timeIntervalSince(since) >= 8 else { return }
+        }
+        stuckNotified = true
+        let app = NSRunningApplication(processIdentifier: pid)
+        let name = app?.localizedName ?? processName(pid)
+        let bundle = app?.bundleIdentifier ?? ""
+        let hint: String
+        if bundle.hasPrefix("com.google.Chrome") || bundle.hasPrefix("com.microsoft.edgemac") || bundle.hasPrefix("com.brave") {
+            hint = "到 \(name) 隨便點一個密碼欄再點掉，或 ⌘Q 重開 \(name)。放掉後碼注音會自動切回"
+        } else if bundle == "com.apple.loginwindow" || name == "loginwindow" {
+            hint = "螢幕鎖定或登入視窗還開著，解鎖後碼注音會自動切回"
+        } else {
+            hint = "關掉 \(name) 裡的密碼欄或「安全鍵盤輸入」，或結束 \(name)。放掉後碼注音會自動切回"
+        }
+        record("安全輸入一直被 \(name)（pid \(pid)）佔著，已通知")
+        notify(title: "碼注音被 \(name) 擋住", body: hint)
+    }
+
+    /// 用系統通知顯示（輸入法程式沒有自己的視窗可以提醒）
+    private static func notify(title: String, body: String) {
+        func quoted(_ text: String) -> String {
+            "\"" + text.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
+        }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", "display notification \(quoted(body)) with title \(quoted(title))"]
+        try? process.run()
+    }
+
     private static func stopRecovery() {
         recoveryTimer?.invalidate()
         recoveryTimer = nil
         forcedSourceID = nil
+        holderInBackgroundSince = nil
     }
 
     private static func isOwn(_ id: String) -> Bool {
